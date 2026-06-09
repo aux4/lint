@@ -1,0 +1,78 @@
+{
+  "scope": "aux4",
+  "name": "lint",
+  "version": "1.0.0",
+  "description": "Linter for .aux4 configuration files",
+  "license": "Apache-2.0",
+  "git": "https://github.com/aux4/lint",
+  "tags": [
+    "aux4",
+    "lint",
+    "linter",
+    "validator",
+    "cli"
+  ],
+  "system": [
+    [
+      "test:node --version",
+      "brew:node",
+      "linux:nodejs"
+    ]
+  ],
+  "profiles": [
+    {
+      "name": "main",
+      "commands": [
+        {
+          "name": "lint",
+          "execute": [
+            "profile:lint"
+          ],
+          "help": {
+            "text": "Lint .aux4 configuration files"
+          }
+        }
+      ]
+    },
+    {
+      "name": "lint",
+      "commands": [
+        {
+          "name": "run",
+          "execute": [
+            "node ${packageDir}/lib/aux4-lint.mjs run values(dir, format, strict, resolve)"
+          ],
+          "help": {
+            "text": "Run the linter on .aux4 files",
+            "variables": [
+              {
+                "name": "dir",
+                "text": "Directory to lint",
+                "default": "."
+              },
+              {
+                "name": "format",
+                "text": "Output format",
+                "default": "text",
+                "options": [
+                  "text",
+                  "json"
+                ]
+              },
+              {
+                "name": "strict",
+                "text": "Strict mode for CI/production (treats -local versions as errors)",
+                "default": "false"
+              },
+              {
+                "name": "resolve",
+                "text": "Resolve aux4 command calls to validate flags and parameters",
+                "default": "false"
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

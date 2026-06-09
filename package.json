@@ -1,0 +1,32 @@
+{
+  "name": "@aux4/lint",
+  "version": "1.0.0",
+  "description": "Linter for .aux4 configuration files",
+  "type": "module",
+  "scripts": {
+    "build": "rollup -c"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+ssh://git@github.com/aux4/lint.git"
+  },
+  "keywords": [
+    "aux4",
+    "lint",
+    "linter",
+    "validator",
+    "cli"
+  ],
+  "author": "aux4 LLC",
+  "license": "Apache-2.0",
+  "bugs": {
+    "url": "https://github.com/aux4/lint/issues"
+  },
+  "homepage": "https://github.com/aux4/lint#readme",
+  "devDependencies": {
+    "@rollup/plugin-commonjs": "^28.0.6",
+    "@rollup/plugin-json": "^6.1.0",
+    "@rollup/plugin-node-resolve": "^16.0.1",
+    "rollup": "^4.46.3"
+  }
+}

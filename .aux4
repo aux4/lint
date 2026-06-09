@@ -1,0 +1,19 @@
+{
+  "profiles": [
+    {
+      "name": "main",
+      "commands": [
+        {
+          "name": "build",
+          "execute": [
+            "npm run build"
+          ],
+          "help": {
+            "text": "Build the aux4/lint package"
+          }
+        }
+      ]
+    }
+  ],
+  "version": "null-local"
+}
