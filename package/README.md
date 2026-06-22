@@ -116,7 +116,7 @@ This checks that `--flag` names passed to `aux4` commands match declared paramet
 | Rule | Severity | Description |
 |------|----------|-------------|
 | `profile-reference` | error/warn | `profile:x` executors must reference existing profiles (warns for cross-package references) |
-| `variable-reference` | warn | `${var}` in execute arrays should reference declared variables (skipped for config-bound commands) |
+| `variable-reference` | warn | `${var}` in execute arrays should reference declared variables (skipped for config-bound commands). Supports dot notation and array indexing (`${obj.items[0].name}`); shell expansions like `${HOME:-/tmp}` are ignored |
 | `condition-variable` | warn | Variables in `if()` conditions must be declared |
 
 ### Executors
@@ -124,10 +124,31 @@ This checks that `--flag` names passed to `aux4` commands match declared paramet
 | Rule | Severity | Description |
 |------|----------|-------------|
 | `executor-profile` | error | `profile:` must be followed by a profile name |
-| `executor-set` | error | `set:` must follow `set:varName=value` or `set:varName=!command` format |
-| `executor-each` | error | `each:` must follow `each:${variable} command` format |
+| `executor-set` | error | `set:` must follow `set:varName=value` or `set:varName=!command` format (multiple `;`-separated assignments allowed) |
+| `executor-each` | error | `each:` must have a command to run for each item in `${response}` (e.g. `each:echo ${item}`) |
+| `executor-range` | warn | `range:` must follow `range:N` or `range:start-end` format |
+| `executor-when` | warn | `when:` must follow `when:condition:command` format (a missing command silently does nothing) |
 | `unknown-executor` | warn | Instruction starts with an unrecognized executor prefix |
 | `misplaced-executor` | warn | Known executor prefix appears mid-instruction instead of at the beginning |
+
+Recognized executor prefixes: `profile`, `set`, `log`, `nout`, `json`, `each`, `confirm`, `stdin`, `alias`, `debug`, `when`, `range`, `file`, `aux4`.
+
+Executor rules apply both to command `execute` arrays and to hook `before`/`after`/`error` steps.
+
+### Hooks
+
+The top-level `hooks` array is validated for structure, and each hook's `before`/`after`/`error` steps are run through the same executor checks as command `execute` arrays.
+
+| Rule | Severity | Description |
+|------|----------|-------------|
+| `hooks-structure` | error | `hooks` must be an array |
+| `hook-structure` | error | Each hook must be an object |
+| `hook-command` | error/warn | Hook requires a non-empty `command` (error); pattern should be `profile/command` with `*` wildcards (warn) |
+| `hook-order` | error | `order` must be an integer |
+| `hook-params` | error | `params` must be an object of string values |
+| `hook-steps` | error | `before`, `after`, `error` must be arrays of strings |
+| `hook-empty` | warn | Hook should define at least one of `before`, `after`, or `error` |
+| `hook-executor` | error | `profile:` and `stdin:` executors are not allowed in hook steps |
 
 ### Parameter Functions
 
@@ -158,15 +179,15 @@ Supports `value(*)` (all params as JSON), `param(name:alias)` (flag aliasing), `
 |------|----------|-------------|
 | `naming-profile` | warn | Profile names should use dashes, not camelCase |
 | `naming-command` | warn | Command names should use dashes, not camelCase |
-| `naming-variable` | warn | Variable names should use camelCase, not dashes |
+| `naming-variable` | warn | Variable names should use camelCase, not dashes (dot notation allowed for nested objects, e.g. `setting.timezone`) |
 | `file-naming` | error | Man/test files must use `__` for command hierarchy and `_` for special characters |
 
 ### Metadata
 
 | Rule | Severity | Description |
 |------|----------|-------------|
-| `metadata-scope` | error | Required when any package field is present; must be lowercase alphanumeric |
-| `metadata-name` | error | Required when any package field is present; must be lowercase with optional dashes |
+| `metadata-scope` | error | Required when any package field is present; must be lowercase alphanumeric with optional dashes (may start with a digit) |
+| `metadata-name` | error | Required when any package field is present; must be lowercase alphanumeric with optional dashes (may start with a digit, e.g. `2table`) |
 | `metadata-version` | error | Required when any package field is present; must follow semver |
 | `version-local` | warn/error | `-local` version suffix (error with `--strict`) |
 | `metadata-description` | error | Must be a string if present |

@@ -451,7 +451,7 @@ aux4 lint run --dir bad-prefix
 
 ```expect:partial
 *?
-  *: WARN   [unknown-executor] Command 'test' in profile 'main' uses unknown executor prefix 'foo:' — known prefixes: profile, set, log, nout, json, each, confirm, stdin, alias, debug
+  *: WARN   [unknown-executor] Command 'test' in profile 'main' uses unknown executor prefix 'foo:' — known prefixes: profile, set, log, nout, json, each, confirm, stdin, alias, debug, when, range, file, aux4
 *?
 1 warning
 ```
@@ -527,7 +527,39 @@ aux4 lint run --dir valid-cond
 No issues found.
 ```
 
-### invalid each format
+### each runs an arbitrary command and should pass
+
+```file:good-each/.aux4
+{
+  "profiles": [
+    {
+      "name": "main",
+      "commands": [
+        {
+          "name": "test",
+          "execute": [
+            "echo one two three",
+            "each:echo ${index}: ${item}"
+          ],
+          "help": {
+            "text": "Test"
+          }
+        }
+      ]
+    }
+  ]
+}
+```
+
+```execute
+aux4 lint run --dir good-each
+```
+
+```expect:partial
+No issues found.
+```
+
+### invalid each format (empty command)
 
 ```file:bad-each/.aux4
 {
@@ -538,7 +570,7 @@ No issues found.
         {
           "name": "test",
           "execute": [
-            "each:notavar"
+            "each:"
           ],
           "help": {
             "text": "Test"
@@ -556,9 +588,79 @@ aux4 lint run --dir bad-each 2>&1 || true
 
 ```expect:partial
 *?
-  *: ERROR  [executor-each] Command 'test' in profile 'main' has invalid 'each:' format — expected 'each:${variable} command'
+  *: ERROR  [executor-each] Command 'test' in profile 'main' has invalid 'each:' format *?
 *?
 1 error
+```
+
+### valid range and invalid range format
+
+```file:good-range/.aux4
+{
+  "profiles": [
+    {
+      "name": "main",
+      "commands": [
+        {
+          "name": "count",
+          "execute": [
+            "range:1-5",
+            "range:${total}",
+            "each:echo ${item}"
+          ],
+          "help": {
+            "text": "Count",
+            "variables": [
+              {
+                "name": "total",
+                "text": "Total"
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}
+```
+
+```execute
+aux4 lint run --dir good-range
+```
+
+```expect:partial
+No issues found.
+```
+
+```file:bad-range/.aux4
+{
+  "profiles": [
+    {
+      "name": "main",
+      "commands": [
+        {
+          "name": "count",
+          "execute": [
+            "range:abc"
+          ],
+          "help": {
+            "text": "Count"
+          }
+        }
+      ]
+    }
+  ]
+}
+```
+
+```execute
+aux4 lint run --dir bad-range
+```
+
+```expect:partial
+*?
+  *: WARN   [executor-range] Command 'count' in profile 'main' has invalid 'range:' format *?
+**
 ```
 
 ### misplaced executor prefix
@@ -593,6 +695,84 @@ aux4 lint run --dir misplaced
   *: WARN   [misplaced-executor] Command 'test' in profile 'main' has 'log:' mid-instruction — executor prefixes must be at the beginning
 *?
 1 warning
+```
+
+### valid when, range, and file executors should pass
+
+```file:when-ok/.aux4
+{
+  "profiles": [
+    {
+      "name": "main",
+      "commands": [
+        {
+          "name": "deploy",
+          "execute": [
+            "when:${env}==prod:log:deploying to prod",
+            "range:1-5 echo ${value}",
+            "file:./script.sh"
+          ],
+          "help": {
+            "text": "Deploy",
+            "variables": [
+              {
+                "name": "env",
+                "text": "Environment"
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}
+```
+
+```execute
+aux4 lint run --dir when-ok
+```
+
+```expect:partial
+No issues found.
+```
+
+### invalid when format without command
+
+```file:bad-when/.aux4
+{
+  "profiles": [
+    {
+      "name": "main",
+      "commands": [
+        {
+          "name": "deploy",
+          "execute": [
+            "when:${env}==prod"
+          ],
+          "help": {
+            "text": "Deploy",
+            "variables": [
+              {
+                "name": "env",
+                "text": "Environment"
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}
+```
+
+```execute
+aux4 lint run --dir bad-when
+```
+
+```expect:partial
+*?
+  *: WARN   [executor-when] Command 'deploy' in profile 'main' has invalid 'when:' format — expected 'when:condition:command' (e.g., 'when:${env}==prod:log:deploying')
+**
 ```
 
 ## metadata validation
@@ -873,15 +1053,19 @@ aux4 lint run --dir bad-system 2>&1 || true
 
 ## no .aux4 files found
 
+```file:no-aux4-here/README.md
+This directory intentionally contains no .aux4 files.
+```
+
 ### should report error when directory has no .aux4 files
 
 ```execute
-aux4 lint run --dir /tmp 2>&1 || true
+aux4 lint run --dir no-aux4-here 2>&1 || true
 ```
 
 ```expect:partial
 *?
-   ERROR  [no-files] No .aux4 files found in '/tmp'
+   ERROR  [no-files] No .aux4 files found in *?no-aux4-here*?
 *?
 1 error
 ```
@@ -2439,5 +2623,528 @@ aux4 lint run --dir bad-nested
 *?
   *: WARN   [profile-naming] Command 'agent' in profile 'ai' routes to 'profile:agent' but convention expects 'profile:ai:agent'
   *: WARN   [profile-naming] Command 'config' in profile 'agent' routes to 'profile:config' but convention expects 'profile:agent:config'
+**
+```
+
+## dot notation and json paths
+
+### dotted variable names and nested references should pass
+
+```file:dot-vars/.aux4
+{
+  "profiles": [
+    {
+      "name": "main",
+      "commands": [
+        {
+          "name": "configure",
+          "execute": [
+            "echo ${setting.timezone}",
+            "node apply.js values(setting.timezone, setting.locale)"
+          ],
+          "help": {
+            "text": "Configure",
+            "variables": [
+              {
+                "name": "setting.timezone",
+                "text": "Timezone"
+              },
+              {
+                "name": "setting.locale",
+                "text": "Locale"
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}
+```
+
+```execute
+aux4 lint run --dir dot-vars
+```
+
+```expect:partial
+No issues found.
+```
+
+### json path with object and array indexing should pass
+
+```file:json-path/.aux4
+{
+  "profiles": [
+    {
+      "name": "main",
+      "commands": [
+        {
+          "name": "pick",
+          "execute": [
+            "echo ${data.items[0].name} ${data.count}"
+          ],
+          "help": {
+            "text": "Pick",
+            "variables": [
+              {
+                "name": "data",
+                "text": "Data object"
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}
+```
+
+```execute
+aux4 lint run --dir json-path
+```
+
+```expect:partial
+No issues found.
+```
+
+### multiple set assignments declare all variables
+
+```file:multi-set/.aux4
+{
+  "profiles": [
+    {
+      "name": "main",
+      "commands": [
+        {
+          "name": "login",
+          "execute": [
+            "set:user=!whoami;host=!hostname",
+            "echo ${user}@${host}"
+          ],
+          "help": {
+            "text": "Login"
+          }
+        }
+      ]
+    }
+  ]
+}
+```
+
+```execute
+aux4 lint run --dir multi-set
+```
+
+```expect:partial
+No issues found.
+```
+
+### shell parameter expansion should not be flagged
+
+```file:shell-expand/.aux4
+{
+  "profiles": [
+    {
+      "name": "main",
+      "commands": [
+        {
+          "name": "run",
+          "execute": [
+            "echo ${HOME:-/tmp}"
+          ],
+          "help": {
+            "text": "Run"
+          }
+        }
+      ]
+    }
+  ]
+}
+```
+
+```execute
+aux4 lint run --dir shell-expand
+```
+
+```expect:partial
+No issues found.
+```
+
+## hook validation
+
+### valid hooks should pass
+
+```file:good-hooks/.aux4
+{
+  "profiles": [
+    {
+      "name": "main",
+      "commands": [
+        {
+          "name": "deploy",
+          "execute": [
+            "echo deploy"
+          ],
+          "help": {
+            "text": "Deploy"
+          }
+        }
+      ]
+    }
+  ],
+  "hooks": [
+    {
+      "command": "aux4:pkger/install",
+      "after": [
+        "aux4 aux4 pkger reindex"
+      ]
+    },
+    {
+      "command": "*/deploy",
+      "order": 1,
+      "params": {
+        "env": "production"
+      },
+      "before": [
+        "log:deploying ${__command}"
+      ],
+      "error": [
+        "log:failed ${__error}"
+      ]
+    }
+  ]
+}
+```
+
+```execute
+aux4 lint run --dir good-hooks
+```
+
+```expect:partial
+No issues found.
+```
+
+### profile: executor blocked in hook
+
+```file:hook-profile/.aux4
+{
+  "profiles": [
+    {
+      "name": "main",
+      "commands": [
+        {
+          "name": "build",
+          "execute": [
+            "echo build"
+          ],
+          "help": {
+            "text": "Build"
+          }
+        }
+      ]
+    }
+  ],
+  "hooks": [
+    {
+      "command": "main/build",
+      "before": [
+        "profile:other"
+      ]
+    }
+  ]
+}
+```
+
+```execute
+aux4 lint run --dir hook-profile 2>&1 || true
+```
+
+```expect:partial
+*?
+  *: ERROR  [hook-executor] Hook 'main/build' (before) uses 'profile:' executor which is not allowed in hooks
+*?
+1 error
+```
+
+### stdin: executor blocked in hook
+
+```file:hook-stdin/.aux4
+{
+  "profiles": [
+    {
+      "name": "main",
+      "commands": [
+        {
+          "name": "build",
+          "execute": [
+            "echo build"
+          ],
+          "help": {
+            "text": "Build"
+          }
+        }
+      ]
+    }
+  ],
+  "hooks": [
+    {
+      "command": "main/build",
+      "after": [
+        "stdin:something"
+      ]
+    }
+  ]
+}
+```
+
+```execute
+aux4 lint run --dir hook-stdin 2>&1 || true
+```
+
+```expect:partial
+*?
+  *: ERROR  [hook-executor] Hook 'main/build' (after) uses 'stdin:' executor which is not allowed in hooks
+*?
+1 error
+```
+
+### unknown executor prefix in hook step
+
+```file:hook-unknown/.aux4
+{
+  "profiles": [
+    {
+      "name": "main",
+      "commands": [
+        {
+          "name": "build",
+          "execute": [
+            "echo build"
+          ],
+          "help": {
+            "text": "Build"
+          }
+        }
+      ]
+    }
+  ],
+  "hooks": [
+    {
+      "command": "main/build",
+      "before": [
+        "foo:bar"
+      ]
+    }
+  ]
+}
+```
+
+```execute
+aux4 lint run --dir hook-unknown
+```
+
+```expect:partial
+*?
+  *: WARN   [unknown-executor] Hook 'main/build' (before) uses unknown executor prefix 'foo:' — known prefixes: profile, set, log, nout, json, each, confirm, stdin, alias, debug, when, range, file, aux4
+**
+```
+
+### missing command field
+
+```file:hook-no-command/.aux4
+{
+  "profiles": [
+    {
+      "name": "main",
+      "commands": [
+        {
+          "name": "build",
+          "execute": [
+            "echo build"
+          ],
+          "help": {
+            "text": "Build"
+          }
+        }
+      ]
+    }
+  ],
+  "hooks": [
+    {
+      "after": [
+        "log:done"
+      ]
+    }
+  ]
+}
+```
+
+```execute
+aux4 lint run --dir hook-no-command 2>&1 || true
+```
+
+```expect:partial
+*?
+  *ERROR  [hook-command] Hook #1 is missing required 'command' field
+**
+```
+
+### invalid command pattern
+
+```file:hook-bad-pattern/.aux4
+{
+  "profiles": [
+    {
+      "name": "main",
+      "commands": [
+        {
+          "name": "build",
+          "execute": [
+            "echo build"
+          ],
+          "help": {
+            "text": "Build"
+          }
+        }
+      ]
+    }
+  ],
+  "hooks": [
+    {
+      "command": "badpattern",
+      "after": [
+        "log:done"
+      ]
+    }
+  ]
+}
+```
+
+```execute
+aux4 lint run --dir hook-bad-pattern
+```
+
+```expect:partial
+*?
+  *: WARN   [hook-command] Hook 'badpattern' command pattern should be 'profile/command' (e.g., 'main/deploy', '*/deploy', '*/*')
+**
+```
+
+### non-integer order
+
+```file:hook-bad-order/.aux4
+{
+  "profiles": [
+    {
+      "name": "main",
+      "commands": [
+        {
+          "name": "build",
+          "execute": [
+            "echo build"
+          ],
+          "help": {
+            "text": "Build"
+          }
+        }
+      ]
+    }
+  ],
+  "hooks": [
+    {
+      "command": "main/build",
+      "order": "1",
+      "after": [
+        "log:done"
+      ]
+    }
+  ]
+}
+```
+
+```execute
+aux4 lint run --dir hook-bad-order 2>&1 || true
+```
+
+```expect:partial
+*?
+  *: ERROR  [hook-order] Hook 'main/build' has 'order' that is not an integer
+**
+```
+
+### hook with no steps
+
+```file:hook-empty/.aux4
+{
+  "profiles": [
+    {
+      "name": "main",
+      "commands": [
+        {
+          "name": "build",
+          "execute": [
+            "echo build"
+          ],
+          "help": {
+            "text": "Build"
+          }
+        }
+      ]
+    }
+  ],
+  "hooks": [
+    {
+      "command": "main/build"
+    }
+  ]
+}
+```
+
+```execute
+aux4 lint run --dir hook-empty
+```
+
+```expect:partial
+*?
+  *: WARN   [hook-empty] Hook 'main/build' has no 'before', 'after', or 'error' steps
+**
+```
+
+### steps must be an array
+
+```file:hook-bad-steps/.aux4
+{
+  "profiles": [
+    {
+      "name": "main",
+      "commands": [
+        {
+          "name": "build",
+          "execute": [
+            "echo build"
+          ],
+          "help": {
+            "text": "Build"
+          }
+        }
+      ]
+    }
+  ],
+  "hooks": [
+    {
+      "command": "main/build",
+      "before": "log:done"
+    }
+  ]
+}
+```
+
+```execute
+aux4 lint run --dir hook-bad-steps 2>&1 || true
+```
+
+```expect:partial
+*?
+  *: ERROR  [hook-steps] Hook 'main/build' has 'before' that must be an array of strings
 **
 ```
