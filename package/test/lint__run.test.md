@@ -451,9 +451,44 @@ aux4 lint run --dir bad-prefix
 
 ```expect:partial
 *?
-  *: WARN   [unknown-executor] Command 'test' in profile 'main' uses unknown executor prefix 'foo:' — known prefixes: profile, set, log, nout, json, each, confirm, stdin, alias, debug, when, range, file, aux4
+  *: WARN   [unknown-executor] Command 'test' in profile 'main' uses unknown executor prefix 'foo:' — known prefixes: profile, set, log, nout, json, each, confirm, stdin, alias, debug, when, range, file, aux4, exit
 *?
 1 warning
+```
+
+### exit executor is recognized
+
+`exit:` is a real core executor, so a file using it must lint clean. This case exists
+because lint's prefix list drifted from core once already.
+
+```file:exit-prefix/.aux4
+{
+  "profiles": [
+    {
+      "name": "main",
+      "commands": [
+        {
+          "name": "test",
+          "execute": [
+            "log:checking",
+            "exit:0"
+          ],
+          "help": {
+            "text": "Test"
+          }
+        }
+      ]
+    }
+  ]
+}
+```
+
+```execute
+aux4 lint run --dir exit-prefix
+```
+
+```expect:partial
+*No issues found*
 ```
 
 ### profile: without name
@@ -2945,7 +2980,7 @@ aux4 lint run --dir hook-unknown
 
 ```expect:partial
 *?
-  *: WARN   [unknown-executor] Hook 'main/build' (before) uses unknown executor prefix 'foo:' — known prefixes: profile, set, log, nout, json, each, confirm, stdin, alias, debug, when, range, file, aux4
+  *: WARN   [unknown-executor] Hook 'main/build' (before) uses unknown executor prefix 'foo:' — known prefixes: profile, set, log, nout, json, each, confirm, stdin, alias, debug, when, range, file, aux4, exit
 **
 ```
 
