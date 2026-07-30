@@ -1416,7 +1416,7 @@ aux4 lint run --dir param-star
 
 ```expect:partial
 *?
-  *: WARN   [param-function] Command 'test' in profile 'main' uses '*' in param() — '*' is only supported in value() and values()
+  *: WARN   [param-function] Command 'test' in profile 'main' uses '*' in param() — '*' is only supported in value(), values() and object()
 **
 ```
 
@@ -1541,6 +1541,233 @@ aux4 lint run --dir bad-multi
 
 ```execute
 aux4 lint run --dir good-multi
+```
+
+```expect:partial
+No issues found.
+```
+
+### object with alias should pass
+
+```file:object-alias/.aux4
+{
+  "profiles": [
+    {
+      "name": "main",
+      "commands": [
+        {
+          "name": "record",
+          "execute": [
+            "echo 'object(name:target, path:location)'"
+          ],
+          "help": {
+            "text": "Record a run",
+            "variables": [
+              {
+                "name": "name",
+                "text": "Target name",
+                "arg": true
+              },
+              {
+                "name": "path",
+                "text": "Destination path"
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}
+```
+
+```execute
+aux4 lint run --dir object-alias
+```
+
+```expect:partial
+No issues found.
+```
+
+### object alias should not hide an undeclared variable
+
+```file:object-alias-bad/.aux4
+{
+  "profiles": [
+    {
+      "name": "main",
+      "commands": [
+        {
+          "name": "record",
+          "execute": [
+            "echo 'object(missing:target)'"
+          ],
+          "help": {
+            "text": "Record a run"
+          }
+        }
+      ]
+    }
+  ]
+}
+```
+
+```execute
+aux4 lint run --dir object-alias-bad
+```
+
+```expect:partial
+*?
+  *: WARN   [param-function] Command 'record' in profile 'main' uses 'missing' in object() but it is not declared in help.variables
+**
+```
+
+### wildcard * in object should pass
+
+```file:object-star/.aux4
+{
+  "profiles": [
+    {
+      "name": "main",
+      "commands": [
+        {
+          "name": "dump",
+          "execute": [
+            "node dump.js object(*)"
+          ],
+          "help": {
+            "text": "Dump every parameter"
+          }
+        }
+      ]
+    }
+  ]
+}
+```
+
+```execute
+aux4 lint run --dir object-star
+```
+
+```expect:partial
+No issues found.
+```
+
+### params without aliases should pass
+
+```file:params-plain/.aux4
+{
+  "profiles": [
+    {
+      "name": "main",
+      "commands": [
+        {
+          "name": "connect",
+          "execute": [
+            "node connect.js params(host, port)"
+          ],
+          "help": {
+            "text": "Connect to a server",
+            "variables": [
+              {
+                "name": "host",
+                "text": "Server host"
+              },
+              {
+                "name": "port",
+                "text": "Server port"
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}
+```
+
+```execute
+aux4 lint run --dir params-plain
+```
+
+```expect:partial
+No issues found.
+```
+
+### params does not support aliases and should warn
+
+```file:params-alias/.aux4
+{
+  "profiles": [
+    {
+      "name": "main",
+      "commands": [
+        {
+          "name": "connect",
+          "execute": [
+            "node connect.js params(host:h)"
+          ],
+          "help": {
+            "text": "Connect to a server",
+            "variables": [
+              {
+                "name": "host",
+                "text": "Server host"
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}
+```
+
+```execute
+aux4 lint run --dir params-alias
+```
+
+```expect:partial
+*?
+  *: WARN   [param-function] Command 'connect' in profile 'main' uses 'host:h' in params() but it is not declared in help.variables
+**
+```
+
+### variables created by set should be accepted in object
+
+```file:object-set-vars/.aux4
+{
+  "profiles": [
+    {
+      "name": "main",
+      "commands": [
+        {
+          "name": "record",
+          "execute": [
+            "set:type=backup",
+            "set:status=running",
+            "set:startedAt=utc()",
+            "echo 'object(name:target, type, status, startedAt)'"
+          ],
+          "help": {
+            "text": "Record a run",
+            "variables": [
+              {
+                "name": "name",
+                "text": "Target name",
+                "arg": true
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}
+```
+
+```execute
+aux4 lint run --dir object-set-vars
 ```
 
 ```expect:partial

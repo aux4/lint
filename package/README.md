@@ -157,7 +157,18 @@ The top-level `hooks` array is validated for structure, and each hook's `before`
 | `param-function` | warn | Variables in `value()`, `values()`, `param()`, `params()`, `object()` must be declared |
 | `param-multiple` | warn | `var*` or `var**` suffix requires `multiple: true` on the variable |
 
-Supports `value(*)` (all params as JSON), `param(name:alias)` (flag aliasing), `param(name**)` (multi-value expansion), and `$` prefix stripping.
+A variable counts as declared when it is listed in `help.variables` **or** created earlier in the same `execute` array with `set:` — building a value with `set:` and then passing it to `object()` is valid.
+
+Only the variable side of a field is validated, never the alias:
+
+| Function | Aliases | Wildcard `*` |
+|----------|---------|--------------|
+| `value()` / `values()` | not supported — the whole field is the variable | supported (`value(*)` = all params as JSON) |
+| `param()` | supported — `param(name:alias)` renames the emitted flag | not supported |
+| `params()` | **not supported** — the whole field is the variable path | not supported |
+| `object()` | supported — `object(name:key)` renames the output JSON key | supported (`object(*)` spreads, `object(*:key)` nests) |
+
+Also supports `param(name**)` (multi-value expansion) and `$` prefix stripping.
 
 ### Encrypted Variables
 
