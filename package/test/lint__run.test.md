@@ -1451,7 +1451,7 @@ aux4 lint run --dir param-star
 
 ```expect:partial
 *?
-  *: WARN   [param-function] Command 'test' in profile 'main' uses '*' in param() — '*' is only supported in value() and values()
+  *: WARN   [param-function] Command 'test' in profile 'main' uses '*' in param() — '*' is only supported in value(), values() and object()
 **
 ```
 
@@ -1576,6 +1576,233 @@ aux4 lint run --dir bad-multi
 
 ```execute
 aux4 lint run --dir good-multi
+```
+
+```expect:partial
+No issues found.
+```
+
+### object with alias should pass
+
+```file:object-alias/.aux4
+{
+  "profiles": [
+    {
+      "name": "main",
+      "commands": [
+        {
+          "name": "record",
+          "execute": [
+            "echo 'object(name:target, path:location)'"
+          ],
+          "help": {
+            "text": "Record a run",
+            "variables": [
+              {
+                "name": "name",
+                "text": "Target name",
+                "arg": true
+              },
+              {
+                "name": "path",
+                "text": "Destination path"
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}
+```
+
+```execute
+aux4 lint run --dir object-alias
+```
+
+```expect:partial
+No issues found.
+```
+
+### object alias should not hide an undeclared variable
+
+```file:object-alias-bad/.aux4
+{
+  "profiles": [
+    {
+      "name": "main",
+      "commands": [
+        {
+          "name": "record",
+          "execute": [
+            "echo 'object(missing:target)'"
+          ],
+          "help": {
+            "text": "Record a run"
+          }
+        }
+      ]
+    }
+  ]
+}
+```
+
+```execute
+aux4 lint run --dir object-alias-bad
+```
+
+```expect:partial
+*?
+  *: WARN   [param-function] Command 'record' in profile 'main' uses 'missing' in object() but it is not declared in help.variables
+**
+```
+
+### wildcard * in object should pass
+
+```file:object-star/.aux4
+{
+  "profiles": [
+    {
+      "name": "main",
+      "commands": [
+        {
+          "name": "dump",
+          "execute": [
+            "node dump.js object(*)"
+          ],
+          "help": {
+            "text": "Dump every parameter"
+          }
+        }
+      ]
+    }
+  ]
+}
+```
+
+```execute
+aux4 lint run --dir object-star
+```
+
+```expect:partial
+No issues found.
+```
+
+### params without aliases should pass
+
+```file:params-plain/.aux4
+{
+  "profiles": [
+    {
+      "name": "main",
+      "commands": [
+        {
+          "name": "connect",
+          "execute": [
+            "node connect.js params(host, port)"
+          ],
+          "help": {
+            "text": "Connect to a server",
+            "variables": [
+              {
+                "name": "host",
+                "text": "Server host"
+              },
+              {
+                "name": "port",
+                "text": "Server port"
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}
+```
+
+```execute
+aux4 lint run --dir params-plain
+```
+
+```expect:partial
+No issues found.
+```
+
+### params does not support aliases and should warn
+
+```file:params-alias/.aux4
+{
+  "profiles": [
+    {
+      "name": "main",
+      "commands": [
+        {
+          "name": "connect",
+          "execute": [
+            "node connect.js params(host:h)"
+          ],
+          "help": {
+            "text": "Connect to a server",
+            "variables": [
+              {
+                "name": "host",
+                "text": "Server host"
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}
+```
+
+```execute
+aux4 lint run --dir params-alias
+```
+
+```expect:partial
+*?
+  *: WARN   [param-function] Command 'connect' in profile 'main' uses 'host:h' in params() but it is not declared in help.variables
+**
+```
+
+### variables created by set should be accepted in object
+
+```file:object-set-vars/.aux4
+{
+  "profiles": [
+    {
+      "name": "main",
+      "commands": [
+        {
+          "name": "record",
+          "execute": [
+            "set:type=backup",
+            "set:status=running",
+            "set:startedAt=utc()",
+            "echo 'object(name:target, type, status, startedAt)'"
+          ],
+          "help": {
+            "text": "Record a run",
+            "variables": [
+              {
+                "name": "name",
+                "text": "Target name",
+                "arg": true
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}
+```
+
+```execute
+aux4 lint run --dir object-set-vars
 ```
 
 ```expect:partial
@@ -3182,4 +3409,687 @@ aux4 lint run --dir hook-bad-steps 2>&1 || true
 *?
   *: ERROR  [hook-steps] Hook 'main/build' has 'before' that must be an array of strings
 **
+```
+
+## unsafe interpolation validation
+
+### flag-adjacent raw interpolation suggests param(var:alias)
+
+```file:unsafe-flag-alias/.aux4
+{
+  "profiles": [
+    {
+      "name": "main",
+      "commands": [
+        {
+          "name": "notify",
+          "execute": [
+            "node notify.js --to '${email}'"
+          ],
+          "help": {
+            "text": "Notify",
+            "variables": [
+              {
+                "name": "email",
+                "text": "Recipient email"
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}
+```
+
+```execute
+aux4 lint run --dir unsafe-flag-alias
+```
+
+```expect:partial
+*?
+  *: WARN   [unsafe-param-interpolation] Command 'notify' in profile 'main' passes --to '${email}' with raw interpolation; use param(email:to) to shell-escape the value (avoids injection)
+*?
+1 warning
+```
+
+### flag name matching the variable suggests bare param(var)
+
+```file:unsafe-flag-match/.aux4
+{
+  "profiles": [
+    {
+      "name": "main",
+      "commands": [
+        {
+          "name": "deploy",
+          "execute": [
+            "node deploy.js --region '${region}'"
+          ],
+          "help": {
+            "text": "Deploy",
+            "variables": [
+              {
+                "name": "region",
+                "text": "Region"
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}
+```
+
+```execute
+aux4 lint run --dir unsafe-flag-match
+```
+
+```expect:partial
+*?
+  *: WARN   [unsafe-param-interpolation] Command 'deploy' in profile 'main' passes --region '${region}' with raw interpolation; use param(region) to shell-escape the value (avoids injection)
+*?
+1 warning
+```
+
+### standalone raw interpolation suggests value(var)
+
+```file:unsafe-standalone/.aux4
+{
+  "profiles": [
+    {
+      "name": "main",
+      "commands": [
+        {
+          "name": "say",
+          "execute": [
+            "echo '${message}'"
+          ],
+          "help": {
+            "text": "Say",
+            "variables": [
+              {
+                "name": "message",
+                "text": "Message"
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}
+```
+
+```execute
+aux4 lint run --dir unsafe-standalone
+```
+
+```expect:partial
+*?
+  *: WARN   [unsafe-value-interpolation] Command 'say' in profile 'main' passes '${message}' with raw interpolation; use value(message) to shell-escape the value (avoids injection)
+*?
+1 warning
+```
+
+### strict mode escalates to error
+
+```file:unsafe-strict/.aux4
+{
+  "profiles": [
+    {
+      "name": "main",
+      "commands": [
+        {
+          "name": "say",
+          "execute": [
+            "echo '${message}'"
+          ],
+          "help": {
+            "text": "Say",
+            "variables": [
+              {
+                "name": "message",
+                "text": "Message"
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}
+```
+
+```execute
+aux4 lint run --dir unsafe-strict --strict true 2>&1 || true
+```
+
+```expect:partial
+*?
+  *: ERROR  [unsafe-value-interpolation] Command 'say' in profile 'main' passes '${message}' with raw interpolation; use value(message) to shell-escape the value (avoids injection)
+*?
+1 error
+```
+
+### composite quoted string fires unsafe-composite-interpolation
+
+```file:unsafe-composite/.aux4
+{
+  "profiles": [
+    {
+      "name": "main",
+      "commands": [
+        {
+          "name": "connect",
+          "execute": [
+            "curl '${host}:${port}'"
+          ],
+          "help": {
+            "text": "Connect",
+            "variables": [
+              {
+                "name": "host",
+                "text": "Host"
+              },
+              {
+                "name": "port",
+                "text": "Port"
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}
+```
+
+```execute
+aux4 lint run --dir unsafe-composite
+```
+
+```expect:partial
+*?
+  *: WARN   [unsafe-composite-interpolation] Command 'connect' in profile 'main' interpolates ${host}, ${port} inside a composite quoted value ('${host}:${port}'); build it with set: then pass through value() (e.g. set:url=… then --url value(url)) to shell-escape (avoids injection)
+*?
+1 warning
+```
+
+### shell default expansion does not fire
+
+```file:unsafe-shell-default/.aux4
+{
+  "profiles": [
+    {
+      "name": "main",
+      "commands": [
+        {
+          "name": "say",
+          "execute": [
+            "echo '${message:-hello}'"
+          ],
+          "help": {
+            "text": "Say",
+            "variables": [
+              {
+                "name": "message",
+                "text": "Message"
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}
+```
+
+```execute
+aux4 lint run --dir unsafe-shell-default
+```
+
+```expect:partial
+No issues found.
+```
+
+### env-assignment raw interpolation fires unsafe-env-interpolation
+
+```file:unsafe-env/.aux4
+{
+  "profiles": [
+    {
+      "name": "main",
+      "commands": [
+        {
+          "name": "make",
+          "execute": [
+            "set:body=!TITLE='${title}' jq -cn '{t: env.TITLE}'"
+          ],
+          "help": {
+            "text": "Make",
+            "variables": [
+              {
+                "name": "title",
+                "text": "Title"
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}
+```
+
+```execute
+aux4 lint run --dir unsafe-env
+```
+
+```expect:partial
+*?
+  *: WARN   [unsafe-env-interpolation] Command 'make' in profile 'main' sets TITLE='${title}' with raw interpolation; use TITLE=value(title) to shell-escape the value (avoids injection)
+*?
+1 warning
+```
+
+### safe forms (param, value, set:url) do not fire
+
+```file:unsafe-safe-forms/.aux4
+{
+  "profiles": [
+    {
+      "name": "main",
+      "commands": [
+        {
+          "name": "fetch",
+          "execute": [
+            "set:url=${apiUrl}/docs/${docId}",
+            "curl param(tokenFile) --url value(url)"
+          ],
+          "help": {
+            "text": "Fetch",
+            "variables": [
+              {
+                "name": "docId",
+                "text": "Doc id"
+              },
+              {
+                "name": "tokenFile",
+                "text": "Token file",
+                "default": "/tmp/t"
+              },
+              {
+                "name": "apiUrl",
+                "text": "API url",
+                "default": "https://x"
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}
+```
+
+```execute
+aux4 lint run --dir unsafe-safe-forms
+```
+
+```expect:partial
+No issues found.
+```
+
+### config-bound command does not fire
+
+```file:unsafe-config/.aux4
+{
+  "profiles": [
+    {
+      "name": "main",
+      "commands": [
+        {
+          "name": "deploy",
+          "execute": [
+            "echo '${message}'"
+          ],
+          "help": {
+            "text": "Deploy",
+            "variables": [
+              {
+                "name": "config",
+                "text": "Config profile"
+              },
+              {
+                "name": "message",
+                "text": "Message"
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}
+```
+
+```execute
+aux4 lint run --dir unsafe-config
+```
+
+```expect:partial
+No issues found.
+```
+
+### trusted builtin packageDir does not fire
+
+```file:unsafe-trusted-builtin/.aux4
+{
+  "profiles": [
+    {
+      "name": "main",
+      "commands": [
+        {
+          "name": "read",
+          "execute": [
+            "cat '${packageDir}'"
+          ],
+          "help": {
+            "text": "Read"
+          }
+        }
+      ]
+    }
+  ]
+}
+```
+
+```execute
+aux4 lint run --dir unsafe-trusted-builtin
+```
+
+```expect:partial
+No issues found.
+```
+
+### already using param() and value() passes clean
+
+```file:unsafe-clean/.aux4
+{
+  "profiles": [
+    {
+      "name": "main",
+      "commands": [
+        {
+          "name": "notify",
+          "execute": [
+            "node notify.js param(email:to) value(message)"
+          ],
+          "help": {
+            "text": "Notify",
+            "variables": [
+              {
+                "name": "email",
+                "text": "Recipient email"
+              },
+              {
+                "name": "message",
+                "text": "Message"
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}
+```
+
+```execute
+aux4 lint run --dir unsafe-clean
+```
+
+```expect:partial
+No issues found.
+```
+
+### consecutive standalone vars collapse into values()
+
+```file:unsafe-values-run/.aux4
+{
+  "profiles": [
+    {
+      "name": "main",
+      "commands": [
+        {
+          "name": "connect",
+          "execute": [
+            "node connect.js '${host}' '${port}' '${db}'"
+          ],
+          "help": {
+            "text": "Connect",
+            "variables": [
+              {
+                "name": "host",
+                "text": "Host"
+              },
+              {
+                "name": "port",
+                "text": "Port"
+              },
+              {
+                "name": "db",
+                "text": "Database"
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}
+```
+
+```execute
+aux4 lint run --dir unsafe-values-run
+```
+
+```expect:partial
+*?
+  *: WARN   [unsafe-value-interpolation] Command 'connect' in profile 'main' passes '${host}' '${port}' '${db}' with raw interpolation; use values(host,port,db) to shell-escape the values (avoids injection)
+*?
+1 warning
+```
+
+### consecutive matched flag pairs collapse into params()
+
+```file:unsafe-params-run/.aux4
+{
+  "profiles": [
+    {
+      "name": "main",
+      "commands": [
+        {
+          "name": "connect",
+          "execute": [
+            "node connect.js --host '${host}' --port '${port}' --db '${db}'"
+          ],
+          "help": {
+            "text": "Connect",
+            "variables": [
+              {
+                "name": "host",
+                "text": "Host"
+              },
+              {
+                "name": "port",
+                "text": "Port"
+              },
+              {
+                "name": "db",
+                "text": "Database"
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}
+```
+
+```execute
+aux4 lint run --dir unsafe-params-run
+```
+
+```expect:partial
+*?
+  *: WARN   [unsafe-param-interpolation] Command 'connect' in profile 'main' passes --host '${host}' --port '${port}' --db '${db}' with raw interpolation; use params(host,port,db) to shell-escape the values (avoids injection)
+*?
+1 warning
+```
+
+### a mismatched flag breaks the run and stays param(var:flag)
+
+```file:unsafe-params-mixed/.aux4
+{
+  "profiles": [
+    {
+      "name": "main",
+      "commands": [
+        {
+          "name": "connect",
+          "execute": [
+            "node connect.js --host '${host}' --port '${port}' --x '${db}' --user '${user}' --pass '${pass}'"
+          ],
+          "help": {
+            "text": "Connect",
+            "variables": [
+              {
+                "name": "host",
+                "text": "Host"
+              },
+              {
+                "name": "port",
+                "text": "Port"
+              },
+              {
+                "name": "db",
+                "text": "Database"
+              },
+              {
+                "name": "user",
+                "text": "User"
+              },
+              {
+                "name": "pass",
+                "text": "Password"
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}
+```
+
+```execute
+aux4 lint run --dir unsafe-params-mixed
+```
+
+```expect:partial
+*?
+  *: WARN   [unsafe-param-interpolation] Command 'connect' in profile 'main' passes --host '${host}' --port '${port}' with raw interpolation; use params(host,port) to shell-escape the values (avoids injection)
+  *: WARN   [unsafe-param-interpolation] Command 'connect' in profile 'main' passes --x '${db}' with raw interpolation; use param(db:x) to shell-escape the value (avoids injection)
+  *: WARN   [unsafe-param-interpolation] Command 'connect' in profile 'main' passes --user '${user}' --pass '${pass}' with raw interpolation; use params(user,pass) to shell-escape the values (avoids injection)
+*?
+3 warnings
+```
+
+### a single standalone var still suggests value()
+
+```file:unsafe-single-value/.aux4
+{
+  "profiles": [
+    {
+      "name": "main",
+      "commands": [
+        {
+          "name": "say",
+          "execute": [
+            "echo '${message}' done"
+          ],
+          "help": {
+            "text": "Say",
+            "variables": [
+              {
+                "name": "message",
+                "text": "Message"
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}
+```
+
+```execute
+aux4 lint run --dir unsafe-single-value
+```
+
+```expect:partial
+*?
+  *: WARN   [unsafe-value-interpolation] Command 'say' in profile 'main' passes '${message}' with raw interpolation; use value(message) to shell-escape the value (avoids injection)
+*?
+1 warning
+```
+
+### a non-candidate token between vars breaks the run
+
+```file:unsafe-broken-run/.aux4
+{
+  "profiles": [
+    {
+      "name": "main",
+      "commands": [
+        {
+          "name": "run",
+          "execute": [
+            "node run.js '${a}' literal '${b}'"
+          ],
+          "help": {
+            "text": "Run",
+            "variables": [
+              {
+                "name": "a",
+                "text": "A"
+              },
+              {
+                "name": "b",
+                "text": "B"
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}
+```
+
+```execute
+aux4 lint run --dir unsafe-broken-run
+```
+
+```expect:partial
+*?
+  *: WARN   [unsafe-value-interpolation] Command 'run' in profile 'main' passes '${a}' with raw interpolation; use value(a) to shell-escape the value (avoids injection)
+  *: WARN   [unsafe-value-interpolation] Command 'run' in profile 'main' passes '${b}' with raw interpolation; use value(b) to shell-escape the value (avoids injection)
+*?
+2 warnings
 ```
