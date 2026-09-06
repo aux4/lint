@@ -146,6 +146,56 @@ aux4 lint run --dir no-execute 2>&1 || true
 1 error, 1 warning
 ```
 
+## command missing name
+
+A command with no `name` field is unreachable and must be reported as a finding.
+This case previously crashed the entire run (`Cannot read properties of undefined
+(reading 'replace')`) because the nameless command reached `findCommandLine` in the
+reference-integrity rule. The run must now complete and report the missing name,
+even when the nameless command carries an `execute` array with variable references.
+
+```file:no-name/.aux4
+{
+  "profiles": [
+    {
+      "name": "main",
+      "commands": [
+        {
+          "execute": [
+            "echo ${versionNumber}"
+          ],
+          "help": {
+            "text": "A command that forgot its name"
+          }
+        },
+        {
+          "name": "hello",
+          "execute": [
+            "echo hi"
+          ],
+          "help": {
+            "text": "Say hi"
+          }
+        }
+      ]
+    }
+  ]
+}
+```
+
+### should report the nameless command and not crash the run
+
+```execute
+aux4 lint run --dir no-name 2>&1 || true
+```
+
+```expect:partial
+*?
+  *: ERROR  [command-name] Command in profile 'main' missing 'name' field
+*?
+1 error
+```
+
 ## profile reference to non-existent profile
 
 ```file:bad-ref/.aux4
