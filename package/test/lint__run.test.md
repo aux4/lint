@@ -4093,3 +4093,363 @@ aux4 lint run --dir unsafe-broken-run
 *?
 2 warnings
 ```
+
+## dependency version ranges
+
+### should accept every valid range and exact form
+
+```file:dep-valid/.aux4
+{
+  "scope": "test",
+  "name": "dep-valid",
+  "version": "1.0.0",
+  "description": "Valid dependency references",
+  "dependencies": [
+    "aux4/config",
+    "aux4/config@1.2.3",
+    "aux4/config@1.0.0-local",
+    "aux4/config@1.0.0-beta.1",
+    "aux4/config@latest",
+    "aux4/config@*",
+    "aux4/config@1.x",
+    "aux4/config@1.2.x",
+    "aux4/config@^1.2.3",
+    "aux4/config@^0.0.3",
+    "aux4/config@~1.2",
+    "aux4/config@>=1.2.3",
+    "aux4/config@>1.2.3",
+    "aux4/config@<=2.0.0",
+    "aux4/config@<2.0.0",
+    "aux4/config@=1.2.3",
+    "aux4/config@1.2.3 - 2.0.0",
+    "aux4/config@>=1.0.0 <2.0.0",
+    "aux4/config@^1.0.0 || ^2.0.0"
+  ],
+  "profiles": [
+    {
+      "name": "main",
+      "commands": [
+        {
+          "name": "hello",
+          "execute": [
+            "echo Hello"
+          ],
+          "help": {
+            "text": "Say hello"
+          }
+        }
+      ]
+    }
+  ]
+}
+```
+
+```execute
+aux4 lint run --dir dep-valid
+```
+
+```expect:partial
+No issues found.
+```
+
+### should report an unknown comparator
+
+```file:dep-bad-comparator/.aux4
+{
+  "scope": "test",
+  "name": "dep-bad-comparator",
+  "version": "1.0.0",
+  "description": "Malformed range",
+  "dependencies": [
+    "aux4/config@~>1.2.3"
+  ],
+  "profiles": [
+    {
+      "name": "main",
+      "commands": [
+        {
+          "name": "hello",
+          "execute": [
+            "echo Hello"
+          ],
+          "help": {
+            "text": "Say hello"
+          }
+        }
+      ]
+    }
+  ]
+}
+```
+
+```execute
+aux4 lint run --dir dep-bad-comparator 2>&1 || true
+```
+
+```expect:partial
+*?
+  *: ERROR  [dependency-version] Dependency 'aux4/config@~>1.2.3' has an invalid version range '~>1.2.3' — invalid version range "~>1.2.3": unknown comparator "~>1.2.3"
+*?
+1 error
+```
+
+### should report a comparator with no version
+
+```file:dep-no-version/.aux4
+{
+  "scope": "test",
+  "name": "dep-no-version",
+  "version": "1.0.0",
+  "description": "Malformed range",
+  "dependencies": [
+    "aux4/config@>=1.0.0 <"
+  ],
+  "profiles": [
+    {
+      "name": "main",
+      "commands": [
+        {
+          "name": "hello",
+          "execute": [
+            "echo Hello"
+          ],
+          "help": {
+            "text": "Say hello"
+          }
+        }
+      ]
+    }
+  ]
+}
+```
+
+```execute
+aux4 lint run --dir dep-no-version 2>&1 || true
+```
+
+```expect:partial
+*?
+  *: ERROR  [dependency-version] Dependency 'aux4/config@>=1.0.0 <' has an invalid version range '>=1.0.0 <' — invalid version range ">=1.0.0 <": comparator "<" has no version
+*?
+1 error
+```
+
+### should report a malformed hyphen range
+
+```file:dep-bad-hyphen/.aux4
+{
+  "scope": "test",
+  "name": "dep-bad-hyphen",
+  "version": "1.0.0",
+  "description": "Malformed range",
+  "dependencies": [
+    "aux4/config@1.0.0 - 2.0.0 - 3.0.0"
+  ],
+  "profiles": [
+    {
+      "name": "main",
+      "commands": [
+        {
+          "name": "hello",
+          "execute": [
+            "echo Hello"
+          ],
+          "help": {
+            "text": "Say hello"
+          }
+        }
+      ]
+    }
+  ]
+}
+```
+
+```execute
+aux4 lint run --dir dep-bad-hyphen 2>&1 || true
+```
+
+```expect:partial
+*?
+  *: ERROR  [dependency-version] Dependency 'aux4/config@1.0.0 - 2.0.0 - 3.0.0' has an invalid version range '1.0.0 - 2.0.0 - 3.0.0' — invalid version range "1.0.0 - 2.0.0 - 3.0.0": invalid hyphen range "1.0.0 - 2.0.0 - 3.0.0"
+*?
+1 error
+```
+
+### should report an empty side of an OR
+
+```file:dep-empty-or/.aux4
+{
+  "scope": "test",
+  "name": "dep-empty-or",
+  "version": "1.0.0",
+  "description": "Malformed range",
+  "dependencies": [
+    "aux4/config@^1.0.0 || "
+  ],
+  "profiles": [
+    {
+      "name": "main",
+      "commands": [
+        {
+          "name": "hello",
+          "execute": [
+            "echo Hello"
+          ],
+          "help": {
+            "text": "Say hello"
+          }
+        }
+      ]
+    }
+  ]
+}
+```
+
+```execute
+aux4 lint run --dir dep-empty-or 2>&1 || true
+```
+
+```expect:partial
+*?
+  *: ERROR  [dependency-version] Dependency 'aux4/config@^1.0.0 || ' has an invalid version range '^1.0.0 || ' — invalid version range "^1.0.0 || ": empty comparator set
+*?
+1 error
+```
+
+### should report a non-numeric version in a range
+
+```file:dep-bad-number/.aux4
+{
+  "scope": "test",
+  "name": "dep-bad-number",
+  "version": "1.0.0",
+  "description": "Malformed range",
+  "dependencies": [
+    "aux4/config@^1.two.3"
+  ],
+  "profiles": [
+    {
+      "name": "main",
+      "commands": [
+        {
+          "name": "hello",
+          "execute": [
+            "echo Hello"
+          ],
+          "help": {
+            "text": "Say hello"
+          }
+        }
+      ]
+    }
+  ]
+}
+```
+
+```execute
+aux4 lint run --dir dep-bad-number 2>&1 || true
+```
+
+```expect:partial
+*?
+  *: ERROR  [dependency-version] Dependency 'aux4/config@^1.two.3' has an invalid version range '^1.two.3' — invalid version range "^1.two.3": invalid version "1.two.3"
+*?
+1 error
+```
+
+### should report a version that is neither a range, nor latest, nor a complete version
+
+A bare partial such as `2.0` is parsed by pkger as an EXACT reference, not as a
+range — that is deliberate backward compatibility and is not changing. But an
+exact reference only ever resolves against a published version, and nothing is
+published under the literal name `2.0`, so the reference can never install.
+
+```file:dep-not-installable/.aux4
+{
+  "scope": "test",
+  "name": "dep-not-installable",
+  "version": "1.0.0",
+  "description": "Versions that can never resolve",
+  "dependencies": [
+    "aux4/config@banana",
+    "aux4/config@1.2.3.4",
+    "aux4/config@2.0",
+    "aux4/config@2",
+    "aux4/config@v1.2.3",
+    "aux4/config@1.0.0-beta.01"
+  ],
+  "profiles": [
+    {
+      "name": "main",
+      "commands": [
+        {
+          "name": "hello",
+          "execute": [
+            "echo Hello"
+          ],
+          "help": {
+            "text": "Say hello"
+          }
+        }
+      ]
+    }
+  ]
+}
+```
+
+```execute
+aux4 lint run --dir dep-not-installable 2>&1 || true
+```
+
+```expect:partial
+*?
+  *: ERROR  [dependency-version] Dependency 'aux4/config@banana' has an invalid version 'banana' — use a complete version (1.2.3), a range (^1.2.0, 1.2.x) or 'latest'
+  *: ERROR  [dependency-version] Dependency 'aux4/config@1.2.3.4' has an invalid version '1.2.3.4' — use a complete version (1.2.3), a range (^1.2.0, 1.2.x) or 'latest'
+  *: ERROR  [dependency-version] Dependency 'aux4/config@2.0' has an invalid version '2.0' — use a complete version (1.2.3), a range (^1.2.0, 1.2.x) or 'latest'
+  *: ERROR  [dependency-version] Dependency 'aux4/config@2' has an invalid version '2' — use a complete version (1.2.3), a range (^1.2.0, 1.2.x) or 'latest'
+  *: ERROR  [dependency-version] Dependency 'aux4/config@v1.2.3' has an invalid version 'v1.2.3' — use a complete version (1.2.3), a range (^1.2.0, 1.2.x) or 'latest'
+  *: ERROR  [dependency-version] Dependency 'aux4/config@1.0.0-beta.01' has an invalid version '1.0.0-beta.01' — use a complete version (1.2.3), a range (^1.2.0, 1.2.x) or 'latest'
+*?
+6 errors
+```
+
+### should report an empty version
+
+```file:dep-empty-version/.aux4
+{
+  "scope": "test",
+  "name": "dep-empty-version",
+  "version": "1.0.0",
+  "description": "Empty version",
+  "dependencies": [
+    "aux4/config@"
+  ],
+  "profiles": [
+    {
+      "name": "main",
+      "commands": [
+        {
+          "name": "hello",
+          "execute": [
+            "echo Hello"
+          ],
+          "help": {
+            "text": "Say hello"
+          }
+        }
+      ]
+    }
+  ]
+}
+```
+
+```execute
+aux4 lint run --dir dep-empty-version 2>&1 || true
+```
+
+```expect:partial
+*?
+  *: ERROR  [dependency-version] Dependency 'aux4/config@' has an empty version — drop the '@' or give a version, range or 'latest'
+*?
+1 error
+```
