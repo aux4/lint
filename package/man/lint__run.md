@@ -20,6 +20,7 @@ The linter checks for:
 - **Naming conventions** — command/profile names should use dashes, variable names should use camelCase (dot notation allowed for nested objects, e.g. `setting.timezone`)
 - **File naming** — man/test files must use `__` for command hierarchy and `_` for special characters (e.g., `config__get.md`, not `config_get.md`); colon-profile entry pages like `ai_skill.md` are accepted
 - **Metadata** — `scope`, `name`, `version` are required when any package field is present; `scope`/`name` are lowercase alphanumeric with dashes (may start with a digit); `system` entries must follow `prefix:package` format; `-local` version suffix is flagged
+- **Dependency versions** — the version token of every `dependencies` entry (`scope/name@<version>`) is validated. An exact version (`1.2.3`), a prerelease (`1.0.0-local`), a bare partial (`2.0`), `latest` and an omitted version are all accepted as-is; anything carrying npm range syntax (`^`, `~`, `>=`, `>`, `<=`, `<`, `=`, `!=`, x-ranges, `*`, hyphen ranges, `||`, space-separated AND) is parsed with the same grammar the package manager uses at install time, so a malformed range is reported before publish instead of at a user's install
 - **Best practices** — unused profiles, missing help text, missing descriptions
 
 Issues are classified as errors (structural problems, exit code `1`) or warnings (conventions and best practices, exit code `0`).
@@ -27,6 +28,27 @@ Issues are classified as errors (structural problems, exit code `1`) or warnings
 Use `--strict` to treat `-local` version suffixes as errors for CI/production pipelines.
 
 Use `--resolve` to validate `aux4` command calls in execute arrays against installed command signatures via `aux4 <cmd> --help --json`.
+
+Supported dependency version forms:
+
+```json
+{
+  "dependencies": [
+    "aux4/config",
+    "aux4/config@latest",
+    "aux4/config@1.2.3",
+    "aux4/config@1.0.0-local",
+    "aux4/config@2.0",
+    "aux4/config@^1.2.3",
+    "aux4/config@~1.2",
+    "aux4/config@1.x",
+    "aux4/config@*",
+    "aux4/config@>=1.0.0 <2.0.0",
+    "aux4/config@1.2.3 - 2.0.0",
+    "aux4/config@^1.0.0 || ^2.0.0"
+  ]
+}
+```
 
 #### Usage
 
@@ -80,4 +102,17 @@ aux4 lint run --strict true --resolve true
 
 ```text
 No issues found.
+```
+
+A malformed dependency range:
+
+```bash
+aux4 lint run --dir ./package
+```
+
+```text
+/path/to/package/.aux4
+  9: ERROR  [dependency-version] Dependency 'aux4/config@~>1.2.3' has an invalid version range '~>1.2.3' — invalid version range "~>1.2.3": unknown comparator "~>1.2.3"
+
+1 error
 ```
