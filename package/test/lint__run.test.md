@@ -4110,8 +4110,6 @@ aux4 lint run --dir unsafe-broken-run
     "aux4/config@1.0.0-local",
     "aux4/config@1.0.0-beta.1",
     "aux4/config@latest",
-    "aux4/config@2.0",
-    "aux4/config@2",
     "aux4/config@*",
     "aux4/config@1.x",
     "aux4/config@1.2.x",
@@ -4357,6 +4355,62 @@ aux4 lint run --dir dep-bad-number 2>&1 || true
   *: ERROR  [dependency-version] Dependency 'aux4/config@^1.two.3' has an invalid version range '^1.two.3' — invalid version range "^1.two.3": invalid version "1.two.3"
 *?
 1 error
+```
+
+### should report a version that is neither a range, nor latest, nor a complete version
+
+A bare partial such as `2.0` is parsed by pkger as an EXACT reference, not as a
+range — that is deliberate backward compatibility and is not changing. But an
+exact reference only ever resolves against a published version, and nothing is
+published under the literal name `2.0`, so the reference can never install.
+
+```file:dep-not-installable/.aux4
+{
+  "scope": "test",
+  "name": "dep-not-installable",
+  "version": "1.0.0",
+  "description": "Versions that can never resolve",
+  "dependencies": [
+    "aux4/config@banana",
+    "aux4/config@1.2.3.4",
+    "aux4/config@2.0",
+    "aux4/config@2",
+    "aux4/config@v1.2.3",
+    "aux4/config@1.0.0-beta.01"
+  ],
+  "profiles": [
+    {
+      "name": "main",
+      "commands": [
+        {
+          "name": "hello",
+          "execute": [
+            "echo Hello"
+          ],
+          "help": {
+            "text": "Say hello"
+          }
+        }
+      ]
+    }
+  ]
+}
+```
+
+```execute
+aux4 lint run --dir dep-not-installable 2>&1 || true
+```
+
+```expect:partial
+*?
+  *: ERROR  [dependency-version] Dependency 'aux4/config@banana' has an invalid version 'banana' — use a complete version (1.2.3), a range (^1.2.0, 1.2.x) or 'latest'
+  *: ERROR  [dependency-version] Dependency 'aux4/config@1.2.3.4' has an invalid version '1.2.3.4' — use a complete version (1.2.3), a range (^1.2.0, 1.2.x) or 'latest'
+  *: ERROR  [dependency-version] Dependency 'aux4/config@2.0' has an invalid version '2.0' — use a complete version (1.2.3), a range (^1.2.0, 1.2.x) or 'latest'
+  *: ERROR  [dependency-version] Dependency 'aux4/config@2' has an invalid version '2' — use a complete version (1.2.3), a range (^1.2.0, 1.2.x) or 'latest'
+  *: ERROR  [dependency-version] Dependency 'aux4/config@v1.2.3' has an invalid version 'v1.2.3' — use a complete version (1.2.3), a range (^1.2.0, 1.2.x) or 'latest'
+  *: ERROR  [dependency-version] Dependency 'aux4/config@1.0.0-beta.01' has an invalid version '1.0.0-beta.01' — use a complete version (1.2.3), a range (^1.2.0, 1.2.x) or 'latest'
+*?
+6 errors
 ```
 
 ### should report an empty version

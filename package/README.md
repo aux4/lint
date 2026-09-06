@@ -193,7 +193,6 @@ A dependency may pin a version or declare an npm-style semver range:
     "aux4/config@latest",
     "aux4/config@1.2.3",
     "aux4/config@1.0.0-local",
-    "aux4/config@2.0",
     "aux4/config@^1.2.3",
     "aux4/config@~1.2",
     "aux4/config@1.x",
@@ -211,7 +210,15 @@ The `dependency-version` rule parses the version token with the same grammar the
   9: ERROR  [dependency-version] Dependency 'aux4/config@~>1.2.3' has an invalid version range '~>1.2.3' — invalid version range "~>1.2.3": unknown comparator "~>1.2.3"
 ```
 
-A token that is not range syntax is left alone — an exact version (`1.2.3`), a prerelease (`1.0.0-local`), a bare partial (`2.0`), `latest`, and an omitted version are all valid exact references, never malformed ranges.
+A token that is not range syntax is treated as an exact reference — a complete version (`1.2.3`), a prerelease (`1.0.0-local`), `latest`, and an omitted version are all accepted as-is, never reported as malformed ranges.
+
+Anything else is reported, because it can never resolve to a published version:
+
+```text
+  9: ERROR  [dependency-version] Dependency 'aux4/config@2.0' has an invalid version '2.0' — use a complete version (1.2.3), a range (^1.2.0, 1.2.x) or 'latest'
+```
+
+**Note:** a bare partial such as `2.0` or `2` is not a range. The package manager parses it as an *exact* reference — that is deliberate backward compatibility and is not changing — but an exact reference only matches a version published under that literal name, and no package publishes a version called `2.0`, so the dependency fails to install. Write `~2.0` or `2.0.x` for the range that was meant.
 
 Supported range syntax: `^`, `~`, `>=`, `>`, `<=`, `<`, `=`, `!=`, x-ranges (`1.x`, `1.2.X`), `*`, hyphen ranges (`1.2.3 - 2.0.0`), `||` for OR and whitespace for AND.
 
@@ -228,7 +235,7 @@ Supported range syntax: `^`, `~`, `>=`, `>`, `<=`, `<`, `=`, `!=`, x-ranges (`1.
 | `metadata-git` | warn | Should be an HTTPS or git+ssh URL |
 | `metadata-tags` | error | Must be an array of strings |
 | `metadata-dependencies` | warn | Should follow `scope/name` or `scope/name@version` format |
-| `dependency-version` | error | The version token of a dependency must be a valid exact version, `latest`, or a parseable semver range |
+| `dependency-version` | error | The version token of a dependency must be a complete version, `latest`, or a parseable semver range |
 | `metadata-system` | error | Must be array of arrays; entries must follow `prefix:package` format; first entry should be `test:` |
 | `metadata-unknown` | warn | Unknown top-level fields |
 
