@@ -222,6 +222,28 @@ Anything else is reported, because it can never resolve to a published version:
 
 Supported range syntax: `^`, `~`, `>=`, `>`, `<=`, `<`, `=`, `!=`, x-ranges (`1.x`, `1.2.X`), `*`, hyphen ranges (`1.2.3 - 2.0.0`), `||` for OR and whitespace for AND.
 
+### Package Metrics
+
+Paid packages define opaque metric keys in `plans.json` and record them explicitly from command execute arrays:
+
+```json
+{
+  "schemaVersion": 1,
+  "metrics": {
+    "clown-fish": { "label": "Clown fish" }
+  },
+  "plans": {
+    "default": { "limits": { "clown-fish": 10 } }
+  }
+}
+```
+
+```json
+"execute": ["aux4 metric record clown-fish"]
+```
+
+The `package-metric` rule is an error in both directions: every literal `aux4 metric record <key>` call must be declared in the adjacent `plans.json`, and every declared key must be recorded somewhere. Dynamic keys are rejected because lint cannot prove that they match the plan contract.
+
 ### Metadata
 
 | Rule | Severity | Description |

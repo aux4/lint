@@ -2,6 +2,12 @@
 
 ## Features
 
+- New `package-metric` rule (severity `error`) checks paid-package metric keys
+  in both directions. Every `aux4 metric record <key>` in a command execute
+  array must be declared in the adjacent `plans.json`, and every declared key
+  must be recorded somewhere. Dynamic or invalid keys are rejected so typos
+  cannot silently bypass a quota.
+
 - New `dependency-version` rule (severity `error`). Every `dependencies` entry
   in a package `.aux4` now has its version token validated at lint time, using
   the same grammar the package manager applies when it resolves the dependency

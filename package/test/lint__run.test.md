@@ -91,6 +91,141 @@ aux4 lint run --dir no-main 2>&1 || true
 1 error
 ```
 
+## valid package metric contract
+
+```file:metric-valid/.aux4
+{
+  "scope": "test",
+  "name": "metric-valid",
+  "version": "1.0.0",
+  "description": "Valid paid package metrics",
+  "dependencies": ["aux4/meter@0.1.0"],
+  "profiles": [
+    {
+      "name": "main",
+      "commands": [
+        {
+          "name": "create",
+          "execute": ["aux4 metric record clown-fish"],
+          "help": { "text": "Create a clown fish" }
+        }
+      ]
+    }
+  ]
+}
+```
+
+```file:metric-valid/plans.json
+{
+  "schemaVersion": 1,
+  "metrics": {
+    "clown-fish": { "label": "Clown fish" }
+  },
+  "plans": {
+    "default": {
+      "limits": { "clown-fish": 10 }
+    }
+  }
+}
+```
+
+### should accept matching declared and recorded metric keys
+
+```execute
+aux4 lint run --dir metric-valid
+```
+
+```expect:partial
+No issues found.
+```
+
+## mismatched package metric contract
+
+```file:metric-mismatch/.aux4
+{
+  "scope": "test",
+  "name": "metric-mismatch",
+  "version": "1.0.0",
+  "description": "Mismatched paid package metrics",
+  "profiles": [
+    {
+      "name": "main",
+      "commands": [
+        {
+          "name": "create",
+          "execute": ["aux4 metric record clownfish"],
+          "help": { "text": "Create a clown fish" }
+        }
+      ]
+    }
+  ]
+}
+```
+
+```file:metric-mismatch/plans.json
+{
+  "schemaVersion": 1,
+  "metrics": {
+    "clown-fish": { "label": "Clown fish" }
+  },
+  "plans": {
+    "default": {
+      "limits": { "clown-fish": 10 }
+    }
+  }
+}
+```
+
+### should report undeclared calls and declared metrics that are never recorded
+
+```execute
+aux4 lint run --dir metric-mismatch 2>&1 || true
+```
+
+```expect:partial
+*?
+   ERROR  [package-metric] Metric 'clown-fish' is declared in plans.json but never recorded with 'aux4 metric record clown-fish'
+   ERROR  [package-metric] Metric 'clownfish' is recorded but not declared in plans.json
+*?
+2 errors
+```
+
+## package metric call without plan
+
+```file:metric-without-plan/.aux4
+{
+  "scope": "test",
+  "name": "metric-without-plan",
+  "version": "1.0.0",
+  "description": "Metric call without a plan",
+  "profiles": [
+    {
+      "name": "main",
+      "commands": [
+        {
+          "name": "create",
+          "execute": ["aux4 metric record clown-fish"],
+          "help": { "text": "Create a clown fish" }
+        }
+      ]
+    }
+  ]
+}
+```
+
+### should reject a metric call when plans.json is absent
+
+```execute
+aux4 lint run --dir metric-without-plan 2>&1 || true
+```
+
+```expect:partial
+*?
+   ERROR  [package-metric] Metric 'clown-fish' is recorded but this package has no plans.json
+*?
+1 error
+```
+
 ## missing profiles array
 
 ```file:no-profiles/.aux4
