@@ -3025,6 +3025,38 @@ aux4 lint run --dir bad-nested
 
 ## dot notation and json paths
 
+### nested caller package is a core builtin
+
+```file:caller-package-builtin/.aux4
+{
+  "profiles": [
+    {
+      "name": "main",
+      "commands": [
+        {
+          "name": "measure",
+          "execute": [
+            "node meter.mjs values(__callerPackage)",
+            "echo ${__callerPackage}"
+          ],
+          "help": {
+            "text": "Measure"
+          }
+        }
+      ]
+    }
+  ]
+}
+```
+
+```execute
+aux4 lint run --dir caller-package-builtin
+```
+
+```expect:partial
+No issues found.
+```
+
 ### dotted variable names and nested references should pass
 
 ```file:dot-vars/.aux4

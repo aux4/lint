@@ -1,5 +1,10 @@
 # Release notes
 
+## 1.0.6
+
+- Recognize aux4 core's `__callerPackage` runtime value as a declared, trusted
+  built-in in variable references and parameter functions.
+
 ## Features
 
 - New `package-metric` rule (severity `error`) checks paid-package metric keys

@@ -154,7 +154,7 @@ The top-level `hooks` array is validated for structure, and each hook's `before`
 
 | Rule | Severity | Description |
 |------|----------|-------------|
-| `param-function` | warn | Variables in `value()`, `values()`, `param()`, `params()`, `object()` must be declared |
+| `param-function` | warn | Variables in `value()`, `values()`, `param()`, `params()`, `object()` must be declared; core built-ins such as `__callerPackage` are exempt |
 | `param-multiple` | warn | `var*` or `var**` suffix requires `multiple: true` on the variable |
 
 Supports `value(*)` (all params as JSON), `param(name:alias)` (flag aliasing), `param(name**)` (multi-value expansion), and `$` prefix stripping.
