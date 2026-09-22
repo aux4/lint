@@ -238,7 +238,7 @@ Supported range syntax: `^`, `~`, `>=`, `>`, `<=`, `<`, `=`, `!=`, x-ranges (`1.
 | `dependency-version` | error | The version token of a dependency must be a complete version, `latest`, or a parseable semver range |
 | `metadata-system` | error | Must be array of arrays; entries must follow `prefix:package` format; first entry should be `test:` |
 | `metadata-type` | error | Package `type`, when present, must be `cloud` |
-| `metadata-cloud` | error | `cloud` requires `type: cloud`; it must be an object whose optional `deployment` is `any` or `new-vm` |
+| `metadata-cloud` | error | `cloud` requires `type: cloud`. A `new-vm` deployment must declare its fixed machine name, size, disk, and optional tenant package/webhook capabilities. |
 | `metadata-unknown` | warn | Unknown top-level fields |
 
 ### Resolve Mode (--resolve)

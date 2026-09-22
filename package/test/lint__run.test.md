@@ -821,7 +821,16 @@ aux4 lint run --dir bad-when
   "version": "1.0.0",
   "type": "cloud",
   "cloud": {
-    "deployment": "new-vm"
+    "deployment": "new-vm",
+    "machine": {
+      "name": "files",
+      "size": "sm",
+      "disk": 1,
+      "tenantCapabilities": {
+        "packages": false,
+        "webhooks": false
+      }
+    }
   },
   "description": "Cloud file storage",
   "profiles": [
@@ -983,6 +992,11 @@ aux4 lint run --dir bad-cloud-deployment 2>&1 || true
   "type": "cloud",
   "cloud": {
     "deployment": "new-vm",
+    "machine": {
+      "name": "files",
+      "size": "sm",
+      "disk": 1
+    },
     "download": true
   },
   "description": "Cloud file storage",
@@ -1014,6 +1028,101 @@ aux4 lint run --dir unknown-cloud-field 2>&1 || true
   *: ERROR  [metadata-cloud] Unknown cloud configuration field 'download'
 *?
 1 error
+```
+
+### dedicated cloud VM requires fixed machine configuration
+
+```file:missing-cloud-machine/.aux4
+{
+  "scope": "aux4",
+  "name": "cloud-files",
+  "version": "1.0.0",
+  "type": "cloud",
+  "cloud": {
+    "deployment": "new-vm"
+  },
+  "description": "Cloud file storage",
+  "profiles": [
+    {
+      "name": "main",
+      "commands": [
+        {
+          "name": "list",
+          "execute": [
+            "echo files"
+          ],
+          "help": {
+            "text": "List files"
+          }
+        }
+      ]
+    }
+  ]
+}
+```
+
+```execute
+aux4 lint run --dir missing-cloud-machine 2>&1 || true
+```
+
+```expect:partial
+*?
+  *: ERROR  [metadata-cloud] 'cloud.machine' is required when deployment is 'new-vm'
+*?
+1 error
+```
+
+### dedicated cloud VM rejects configurable machine values outside the contract
+
+```file:bad-cloud-machine/.aux4
+{
+  "scope": "aux4",
+  "name": "cloud-files",
+  "version": "1.0.0",
+  "type": "cloud",
+  "cloud": {
+    "deployment": "new-vm",
+    "machine": {
+      "name": "bad name",
+      "size": "xxl",
+      "disk": 20,
+      "tenantCapabilities": {
+        "packages": "yes"
+      }
+    }
+  },
+  "description": "Cloud file storage",
+  "profiles": [
+    {
+      "name": "main",
+      "commands": [
+        {
+          "name": "list",
+          "execute": [
+            "echo files"
+          ],
+          "help": {
+            "text": "List files"
+          }
+        }
+      ]
+    }
+  ]
+}
+```
+
+```execute
+aux4 lint run --dir bad-cloud-machine 2>&1 || true
+```
+
+```expect:partial
+*?
+  *: ERROR  [metadata-cloud] 'cloud.machine.name' must be a valid VM name
+  *: ERROR  [metadata-cloud] 'cloud.machine.size' must be one of: xs, sm, md, lg, xl
+  *: ERROR  [metadata-cloud] 'cloud.machine.disk' must be between 0.5 and 10 GiB for size 'xxl'
+  *: ERROR  [metadata-cloud] 'cloud.machine.tenantCapabilities.packages' must be boolean
+*?
+4 errors
 ```
 
 ### profiles-only file should pass
