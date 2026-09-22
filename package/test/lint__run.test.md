@@ -1043,6 +1043,319 @@ aux4 lint run --dir bad-when
 
 ## metadata validation
 
+### valid cloud package policy should pass
+
+```file:cloud-package/.aux4
+{
+  "scope": "aux4",
+  "name": "cloud-files",
+  "version": "1.0.0",
+  "type": "cloud",
+  "cloud": {
+    "deployment": "new-vm",
+    "machine": {
+      "name": "files",
+      "size": "sm",
+      "disk": 1,
+      "tenantCapabilities": {
+        "packages": false,
+        "webhooks": false
+      }
+    }
+  },
+  "description": "Cloud file storage",
+  "profiles": [
+    {
+      "name": "main",
+      "commands": [
+        {
+          "name": "files",
+          "execute": [
+            "echo files"
+          ],
+          "help": {
+            "text": "Manage files"
+          }
+        }
+      ]
+    }
+  ]
+}
+```
+
+```execute
+aux4 lint run --dir cloud-package
+```
+
+```expect:partial
+No issues found.
+```
+
+### unsupported package type should fail
+
+```file:bad-package-type/.aux4
+{
+  "scope": "aux4",
+  "name": "cloud-files",
+  "version": "1.0.0",
+  "type": "hosted",
+  "description": "Cloud file storage",
+  "profiles": [
+    {
+      "name": "main",
+      "commands": [
+        {
+          "name": "files",
+          "execute": [
+            "echo files"
+          ],
+          "help": {
+            "text": "Manage files"
+          }
+        }
+      ]
+    }
+  ]
+}
+```
+
+```execute
+aux4 lint run --dir bad-package-type 2>&1 || true
+```
+
+```expect:partial
+*?
+  *: ERROR  [metadata-type] 'type' must be one of: cloud
+*?
+1 error
+```
+
+### cloud configuration requires cloud package type
+
+```file:cloud-without-type/.aux4
+{
+  "scope": "aux4",
+  "name": "cloud-files",
+  "version": "1.0.0",
+  "cloud": {
+    "deployment": "new-vm"
+  },
+  "description": "Cloud file storage",
+  "profiles": [
+    {
+      "name": "main",
+      "commands": [
+        {
+          "name": "files",
+          "execute": [
+            "echo files"
+          ],
+          "help": {
+            "text": "Manage files"
+          }
+        }
+      ]
+    }
+  ]
+}
+```
+
+```execute
+aux4 lint run --dir cloud-without-type 2>&1 || true
+```
+
+```expect:partial
+*?
+  *: ERROR  [metadata-cloud] 'cloud' configuration requires 'type' to be 'cloud'
+*?
+1 error
+```
+
+### invalid cloud deployment policy should fail
+
+```file:bad-cloud-deployment/.aux4
+{
+  "scope": "aux4",
+  "name": "cloud-files",
+  "version": "1.0.0",
+  "type": "cloud",
+  "cloud": {
+    "deployment": "existing-vm"
+  },
+  "description": "Cloud file storage",
+  "profiles": [
+    {
+      "name": "main",
+      "commands": [
+        {
+          "name": "files",
+          "execute": [
+            "echo files"
+          ],
+          "help": {
+            "text": "Manage files"
+          }
+        }
+      ]
+    }
+  ]
+}
+```
+
+```execute
+aux4 lint run --dir bad-cloud-deployment 2>&1 || true
+```
+
+```expect:partial
+*?
+  *: ERROR  [metadata-cloud] 'cloud.deployment' must be one of: any, new-vm
+*?
+1 error
+```
+
+### unknown cloud configuration field should fail
+
+```file:unknown-cloud-field/.aux4
+{
+  "scope": "aux4",
+  "name": "cloud-files",
+  "version": "1.0.0",
+  "type": "cloud",
+  "cloud": {
+    "deployment": "new-vm",
+    "machine": {
+      "name": "files",
+      "size": "sm",
+      "disk": 1
+    },
+    "download": true
+  },
+  "description": "Cloud file storage",
+  "profiles": [
+    {
+      "name": "main",
+      "commands": [
+        {
+          "name": "files",
+          "execute": [
+            "echo files"
+          ],
+          "help": {
+            "text": "Manage files"
+          }
+        }
+      ]
+    }
+  ]
+}
+```
+
+```execute
+aux4 lint run --dir unknown-cloud-field 2>&1 || true
+```
+
+```expect:partial
+*?
+  *: ERROR  [metadata-cloud] Unknown cloud configuration field 'download'
+*?
+1 error
+```
+
+### dedicated cloud VM requires fixed machine configuration
+
+```file:missing-cloud-machine/.aux4
+{
+  "scope": "aux4",
+  "name": "cloud-files",
+  "version": "1.0.0",
+  "type": "cloud",
+  "cloud": {
+    "deployment": "new-vm"
+  },
+  "description": "Cloud file storage",
+  "profiles": [
+    {
+      "name": "main",
+      "commands": [
+        {
+          "name": "list",
+          "execute": [
+            "echo files"
+          ],
+          "help": {
+            "text": "List files"
+          }
+        }
+      ]
+    }
+  ]
+}
+```
+
+```execute
+aux4 lint run --dir missing-cloud-machine 2>&1 || true
+```
+
+```expect:partial
+*?
+  *: ERROR  [metadata-cloud] 'cloud.machine' is required when deployment is 'new-vm'
+*?
+1 error
+```
+
+### dedicated cloud VM rejects configurable machine values outside the contract
+
+```file:bad-cloud-machine/.aux4
+{
+  "scope": "aux4",
+  "name": "cloud-files",
+  "version": "1.0.0",
+  "type": "cloud",
+  "cloud": {
+    "deployment": "new-vm",
+    "machine": {
+      "name": "bad name",
+      "size": "xxl",
+      "disk": 20,
+      "tenantCapabilities": {
+        "packages": "yes"
+      }
+    }
+  },
+  "description": "Cloud file storage",
+  "profiles": [
+    {
+      "name": "main",
+      "commands": [
+        {
+          "name": "list",
+          "execute": [
+            "echo files"
+          ],
+          "help": {
+            "text": "List files"
+          }
+        }
+      ]
+    }
+  ]
+}
+```
+
+```execute
+aux4 lint run --dir bad-cloud-machine 2>&1 || true
+```
+
+```expect:partial
+*?
+  *: ERROR  [metadata-cloud] 'cloud.machine.name' must be a valid VM name
+  *: ERROR  [metadata-cloud] 'cloud.machine.size' must be one of: xs, sm, md, lg, xl
+  *: ERROR  [metadata-cloud] 'cloud.machine.disk' must be between 0.5 and 10 GiB for size 'xxl'
+  *: ERROR  [metadata-cloud] 'cloud.machine.tenantCapabilities.packages' must be boolean
+*?
+4 errors
+```
+
 ### profiles-only file should pass
 
 ```file:profiles-only/.aux4

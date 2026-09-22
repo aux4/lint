@@ -10,6 +10,13 @@
   must be recorded somewhere. Dynamic or invalid keys are rejected so typos
   cannot silently bypass a quota.
 
+- Cloud package manifests are now validated end to end. The linter recognizes
+  `type: cloud` and the `cloud.deployment` policy. A `new-vm` package declares
+  its fixed machine name, size, disk, and optional tenant package/webhook
+  capabilities. Invalid types, unsupported deployment policies, unsafe machine
+  values, unknown cloud configuration fields, and `cloud` configuration on a
+  non-cloud package are reported as errors.
+
 - New `dependency-version` rule (severity `error`). Every `dependencies` entry
   in a package `.aux4` now has its version token validated at lint time, using
   the same grammar the package manager applies when it resolves the dependency
