@@ -2,6 +2,8 @@
 
 ## Features
 
+- Package metrics now validate generic display-to-base unit metadata. A metric can declare its canonical `base` unit, human-facing `display` unit, integer `baseUnitsPerDisplayUnit`, and display `decimals` for trusted telemetry such as byte storage shown in GB.
+
 - New `package-metric` rule (severity `error`) checks paid-package metric keys
   in both directions. Every `aux4 metric record <key>` in a command execute
   array must be declared in the adjacent `plans.json`, and every declared key

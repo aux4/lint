@@ -2,6 +2,8 @@
 
 Linter for `.aux4` configuration files. Validates JSON structure, naming conventions, reference integrity, parameter functions, encrypted variables, and best practices.
 
+Paid-package metric declarations may include a generic `unit` object with `base`, `display`, `baseUnitsPerDisplayUnit`, and optional `decimals`. The linter validates this conversion metadata before publish so canonical telemetry values can be rendered in a human-friendly unit without relying on metric-name conventions.
+
 ## Installation
 
 ```bash

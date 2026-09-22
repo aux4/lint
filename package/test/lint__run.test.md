@@ -166,10 +166,19 @@ No issues found.
 {
   "schemaVersion": 1,
   "metrics": {
-    "storage-gb": { "label": "Storage", "type": "gauge" }
+    "storage-bytes": {
+      "label": "Storage",
+      "type": "gauge",
+      "unit": {
+        "base": "byte",
+        "display": "GB",
+        "baseUnitsPerDisplayUnit": 1000000000,
+        "decimals": 2
+      }
+    }
   },
   "plans": {
-    "small": { "price": { "monthly": 1 }, "limits": { "storage-gb": 10 } }
+    "small": { "price": { "monthly": 1 }, "limits": { "storage-bytes": 10 } }
   }
 }
 ```
@@ -182,6 +191,48 @@ aux4 lint run --dir metric-gauge
 
 ```expect
 No issues found.
+```
+
+## invalid metric unit contract
+
+```file:metric-invalid-unit/.aux4
+{
+  "scope": "test",
+  "name": "metric-invalid-unit",
+  "version": "1.0.0",
+  "description": "Invalid metric units",
+  "profiles": [{ "name": "main", "commands": [] }]
+}
+```
+
+```file:metric-invalid-unit/plans.json
+{
+  "schemaVersion": 1,
+  "metrics": {
+    "storage-bytes": {
+      "label": "Storage",
+      "type": "gauge",
+      "unit": { "base": "byte", "display": "GB", "baseUnitsPerDisplayUnit": 0, "decimals": 9 }
+    }
+  },
+  "plans": {
+    "small": { "price": { "monthly": 1 }, "limits": { "storage-bytes": 10 } }
+  }
+}
+```
+
+### should reject invalid metric conversion metadata
+
+```execute
+aux4 lint run --dir metric-invalid-unit 2>&1 || true
+```
+
+```expect:partial
+unit.baseUnitsPerDisplayUnit must be a positive safe integer
+```
+
+```expect:partial
+unit.decimals must be an integer from 0 to 6
 ```
 
 ## mismatched package metric contract
