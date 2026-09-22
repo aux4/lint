@@ -139,6 +139,51 @@ aux4 lint run --dir metric-valid
 No issues found.
 ```
 
+## service-measured gauge metric contract
+
+```file:metric-gauge/.aux4
+{
+  "scope": "test",
+  "name": "metric-gauge",
+  "version": "1.0.0",
+  "description": "Trusted service gauge",
+  "profiles": [
+    {
+      "name": "main",
+      "commands": [
+        {
+          "name": "usage",
+          "execute": ["echo measured by service"],
+          "help": { "text": "Show usage" }
+        }
+      ]
+    }
+  ]
+}
+```
+
+```file:metric-gauge/plans.json
+{
+  "schemaVersion": 1,
+  "metrics": {
+    "storage-gb": { "label": "Storage", "type": "gauge" }
+  },
+  "plans": {
+    "small": { "price": { "monthly": 1 }, "limits": { "storage-gb": 10 } }
+  }
+}
+```
+
+### should accept a gauge without a package-side record call
+
+```execute
+aux4 lint run --dir metric-gauge
+```
+
+```expect
+No issues found.
+```
+
 ## mismatched package metric contract
 
 ```file:metric-mismatch/.aux4
