@@ -2,6 +2,8 @@
 
 Linter for `.aux4` configuration files. Validates JSON structure, naming conventions, reference integrity, parameter functions, encrypted variables, and best practices.
 
+Paid-package metric declarations may include a generic `unit` object with `base`, `display`, `baseUnitsPerDisplayUnit`, and optional `decimals`. The linter validates this conversion metadata before publish so canonical telemetry values can be rendered in a human-friendly unit without relying on metric-name conventions.
+
 ## Installation
 
 ```bash
@@ -222,6 +224,28 @@ Anything else is reported, because it can never resolve to a published version:
 
 Supported range syntax: `^`, `~`, `>=`, `>`, `<=`, `<`, `=`, `!=`, x-ranges (`1.x`, `1.2.X`), `*`, hyphen ranges (`1.2.3 - 2.0.0`), `||` for OR and whitespace for AND.
 
+### Package Metrics
+
+Paid packages define opaque metric keys in `plans.json` and record them explicitly from command execute arrays:
+
+```json
+{
+  "schemaVersion": 1,
+  "metrics": {
+    "clown-fish": { "label": "Clown fish" }
+  },
+  "plans": {
+    "default": { "limits": { "clown-fish": 10 } }
+  }
+}
+```
+
+```json
+"execute": ["aux4 metric record clown-fish"]
+```
+
+The `package-metric` rule is an error in both directions: every literal `aux4 metric record <key>` call must be declared in the adjacent `plans.json`, and every declared key must be recorded somewhere. Dynamic keys are rejected because lint cannot prove that they match the plan contract.
+
 ### Metadata
 
 | Rule | Severity | Description |
@@ -237,6 +261,8 @@ Supported range syntax: `^`, `~`, `>=`, `>`, `<=`, `<`, `=`, `!=`, x-ranges (`1.
 | `metadata-dependencies` | warn | Should follow `scope/name` or `scope/name@version` format |
 | `dependency-version` | error | The version token of a dependency must be a complete version, `latest`, or a parseable semver range |
 | `metadata-system` | error | Must be array of arrays; entries must follow `prefix:package` format; first entry should be `test:` |
+| `metadata-type` | error | Package `type`, when present, must be `cloud` |
+| `metadata-cloud` | error | `cloud` requires `type: cloud`. A `new-vm` deployment must declare its fixed machine name, size, disk, and optional tenant package/webhook capabilities. |
 | `metadata-unknown` | warn | Unknown top-level fields |
 
 ### Resolve Mode (--resolve)

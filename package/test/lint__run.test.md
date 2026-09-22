@@ -91,6 +91,237 @@ aux4 lint run --dir no-main 2>&1 || true
 1 error
 ```
 
+## valid package metric contract
+
+```file:metric-valid/.aux4
+{
+  "scope": "test",
+  "name": "metric-valid",
+  "version": "1.0.0",
+  "description": "Valid paid package metrics",
+  "dependencies": ["aux4/meter@0.1.0"],
+  "profiles": [
+    {
+      "name": "main",
+      "commands": [
+        {
+          "name": "create",
+          "execute": ["aux4 metric record clown-fish"],
+          "help": { "text": "Create a clown fish" }
+        }
+      ]
+    }
+  ]
+}
+```
+
+```file:metric-valid/plans.json
+{
+  "schemaVersion": 1,
+  "metrics": {
+    "clown-fish": { "label": "Clown fish" }
+  },
+  "plans": {
+    "default": {
+      "limits": { "clown-fish": 10 }
+    }
+  }
+}
+```
+
+### should accept matching declared and recorded metric keys
+
+```execute
+aux4 lint run --dir metric-valid
+```
+
+```expect:partial
+No issues found.
+```
+
+## service-measured gauge metric contract
+
+```file:metric-gauge/.aux4
+{
+  "scope": "test",
+  "name": "metric-gauge",
+  "version": "1.0.0",
+  "description": "Trusted service gauge",
+  "profiles": [
+    {
+      "name": "main",
+      "commands": [
+        {
+          "name": "usage",
+          "execute": ["echo measured by service"],
+          "help": { "text": "Show usage" }
+        }
+      ]
+    }
+  ]
+}
+```
+
+```file:metric-gauge/plans.json
+{
+  "schemaVersion": 1,
+  "metrics": {
+    "storage-bytes": {
+      "label": "Storage",
+      "type": "gauge",
+      "unit": {
+        "base": "byte",
+        "display": "GB",
+        "baseUnitsPerDisplayUnit": 1000000000,
+        "decimals": 2
+      }
+    }
+  },
+  "plans": {
+    "small": { "price": { "monthly": 1 }, "limits": { "storage-bytes": 10 } }
+  }
+}
+```
+
+### should accept a gauge without a package-side record call
+
+```execute
+aux4 lint run --dir metric-gauge
+```
+
+```expect
+No issues found.
+```
+
+## invalid metric unit contract
+
+```file:metric-invalid-unit/.aux4
+{
+  "scope": "test",
+  "name": "metric-invalid-unit",
+  "version": "1.0.0",
+  "description": "Invalid metric units",
+  "profiles": [{ "name": "main", "commands": [] }]
+}
+```
+
+```file:metric-invalid-unit/plans.json
+{
+  "schemaVersion": 1,
+  "metrics": {
+    "storage-bytes": {
+      "label": "Storage",
+      "type": "gauge",
+      "unit": { "base": "byte", "display": "GB", "baseUnitsPerDisplayUnit": 0, "decimals": 9 }
+    }
+  },
+  "plans": {
+    "small": { "price": { "monthly": 1 }, "limits": { "storage-bytes": 10 } }
+  }
+}
+```
+
+### should reject invalid metric conversion metadata
+
+```execute
+aux4 lint run --dir metric-invalid-unit 2>&1 || true
+```
+
+```expect:partial
+unit.baseUnitsPerDisplayUnit must be a positive safe integer
+```
+
+```expect:partial
+unit.decimals must be an integer from 0 to 6
+```
+
+## mismatched package metric contract
+
+```file:metric-mismatch/.aux4
+{
+  "scope": "test",
+  "name": "metric-mismatch",
+  "version": "1.0.0",
+  "description": "Mismatched paid package metrics",
+  "profiles": [
+    {
+      "name": "main",
+      "commands": [
+        {
+          "name": "create",
+          "execute": ["aux4 metric record clownfish"],
+          "help": { "text": "Create a clown fish" }
+        }
+      ]
+    }
+  ]
+}
+```
+
+```file:metric-mismatch/plans.json
+{
+  "schemaVersion": 1,
+  "metrics": {
+    "clown-fish": { "label": "Clown fish" }
+  },
+  "plans": {
+    "default": {
+      "limits": { "clown-fish": 10 }
+    }
+  }
+}
+```
+
+### should report undeclared calls and declared metrics that are never recorded
+
+```execute
+aux4 lint run --dir metric-mismatch 2>&1 || true
+```
+
+```expect:partial
+*?
+   ERROR  [package-metric] Metric 'clown-fish' is declared in plans.json but never recorded with 'aux4 metric record clown-fish'
+   ERROR  [package-metric] Metric 'clownfish' is recorded but not declared in plans.json
+*?
+2 errors
+```
+
+## package metric call without plan
+
+```file:metric-without-plan/.aux4
+{
+  "scope": "test",
+  "name": "metric-without-plan",
+  "version": "1.0.0",
+  "description": "Metric call without a plan",
+  "profiles": [
+    {
+      "name": "main",
+      "commands": [
+        {
+          "name": "create",
+          "execute": ["aux4 metric record clown-fish"],
+          "help": { "text": "Create a clown fish" }
+        }
+      ]
+    }
+  ]
+}
+```
+
+### should reject a metric call when plans.json is absent
+
+```execute
+aux4 lint run --dir metric-without-plan 2>&1 || true
+```
+
+```expect:partial
+*?
+   ERROR  [package-metric] Metric 'clown-fish' is recorded but this package has no plans.json
+*?
+1 error
+```
+
 ## missing profiles array
 
 ```file:no-profiles/.aux4
@@ -811,6 +1042,319 @@ aux4 lint run --dir bad-when
 ```
 
 ## metadata validation
+
+### valid cloud package policy should pass
+
+```file:cloud-package/.aux4
+{
+  "scope": "aux4",
+  "name": "cloud-files",
+  "version": "1.0.0",
+  "type": "cloud",
+  "cloud": {
+    "deployment": "new-vm",
+    "machine": {
+      "name": "files",
+      "size": "sm",
+      "disk": 1,
+      "tenantCapabilities": {
+        "packages": false,
+        "webhooks": false
+      }
+    }
+  },
+  "description": "Cloud file storage",
+  "profiles": [
+    {
+      "name": "main",
+      "commands": [
+        {
+          "name": "files",
+          "execute": [
+            "echo files"
+          ],
+          "help": {
+            "text": "Manage files"
+          }
+        }
+      ]
+    }
+  ]
+}
+```
+
+```execute
+aux4 lint run --dir cloud-package
+```
+
+```expect:partial
+No issues found.
+```
+
+### unsupported package type should fail
+
+```file:bad-package-type/.aux4
+{
+  "scope": "aux4",
+  "name": "cloud-files",
+  "version": "1.0.0",
+  "type": "hosted",
+  "description": "Cloud file storage",
+  "profiles": [
+    {
+      "name": "main",
+      "commands": [
+        {
+          "name": "files",
+          "execute": [
+            "echo files"
+          ],
+          "help": {
+            "text": "Manage files"
+          }
+        }
+      ]
+    }
+  ]
+}
+```
+
+```execute
+aux4 lint run --dir bad-package-type 2>&1 || true
+```
+
+```expect:partial
+*?
+  *: ERROR  [metadata-type] 'type' must be one of: cloud
+*?
+1 error
+```
+
+### cloud configuration requires cloud package type
+
+```file:cloud-without-type/.aux4
+{
+  "scope": "aux4",
+  "name": "cloud-files",
+  "version": "1.0.0",
+  "cloud": {
+    "deployment": "new-vm"
+  },
+  "description": "Cloud file storage",
+  "profiles": [
+    {
+      "name": "main",
+      "commands": [
+        {
+          "name": "files",
+          "execute": [
+            "echo files"
+          ],
+          "help": {
+            "text": "Manage files"
+          }
+        }
+      ]
+    }
+  ]
+}
+```
+
+```execute
+aux4 lint run --dir cloud-without-type 2>&1 || true
+```
+
+```expect:partial
+*?
+  *: ERROR  [metadata-cloud] 'cloud' configuration requires 'type' to be 'cloud'
+*?
+1 error
+```
+
+### invalid cloud deployment policy should fail
+
+```file:bad-cloud-deployment/.aux4
+{
+  "scope": "aux4",
+  "name": "cloud-files",
+  "version": "1.0.0",
+  "type": "cloud",
+  "cloud": {
+    "deployment": "existing-vm"
+  },
+  "description": "Cloud file storage",
+  "profiles": [
+    {
+      "name": "main",
+      "commands": [
+        {
+          "name": "files",
+          "execute": [
+            "echo files"
+          ],
+          "help": {
+            "text": "Manage files"
+          }
+        }
+      ]
+    }
+  ]
+}
+```
+
+```execute
+aux4 lint run --dir bad-cloud-deployment 2>&1 || true
+```
+
+```expect:partial
+*?
+  *: ERROR  [metadata-cloud] 'cloud.deployment' must be one of: any, new-vm
+*?
+1 error
+```
+
+### unknown cloud configuration field should fail
+
+```file:unknown-cloud-field/.aux4
+{
+  "scope": "aux4",
+  "name": "cloud-files",
+  "version": "1.0.0",
+  "type": "cloud",
+  "cloud": {
+    "deployment": "new-vm",
+    "machine": {
+      "name": "files",
+      "size": "sm",
+      "disk": 1
+    },
+    "download": true
+  },
+  "description": "Cloud file storage",
+  "profiles": [
+    {
+      "name": "main",
+      "commands": [
+        {
+          "name": "files",
+          "execute": [
+            "echo files"
+          ],
+          "help": {
+            "text": "Manage files"
+          }
+        }
+      ]
+    }
+  ]
+}
+```
+
+```execute
+aux4 lint run --dir unknown-cloud-field 2>&1 || true
+```
+
+```expect:partial
+*?
+  *: ERROR  [metadata-cloud] Unknown cloud configuration field 'download'
+*?
+1 error
+```
+
+### dedicated cloud VM requires fixed machine configuration
+
+```file:missing-cloud-machine/.aux4
+{
+  "scope": "aux4",
+  "name": "cloud-files",
+  "version": "1.0.0",
+  "type": "cloud",
+  "cloud": {
+    "deployment": "new-vm"
+  },
+  "description": "Cloud file storage",
+  "profiles": [
+    {
+      "name": "main",
+      "commands": [
+        {
+          "name": "list",
+          "execute": [
+            "echo files"
+          ],
+          "help": {
+            "text": "List files"
+          }
+        }
+      ]
+    }
+  ]
+}
+```
+
+```execute
+aux4 lint run --dir missing-cloud-machine 2>&1 || true
+```
+
+```expect:partial
+*?
+  *: ERROR  [metadata-cloud] 'cloud.machine' is required when deployment is 'new-vm'
+*?
+1 error
+```
+
+### dedicated cloud VM rejects configurable machine values outside the contract
+
+```file:bad-cloud-machine/.aux4
+{
+  "scope": "aux4",
+  "name": "cloud-files",
+  "version": "1.0.0",
+  "type": "cloud",
+  "cloud": {
+    "deployment": "new-vm",
+    "machine": {
+      "name": "bad name",
+      "size": "xxl",
+      "disk": 20,
+      "tenantCapabilities": {
+        "packages": "yes"
+      }
+    }
+  },
+  "description": "Cloud file storage",
+  "profiles": [
+    {
+      "name": "main",
+      "commands": [
+        {
+          "name": "list",
+          "execute": [
+            "echo files"
+          ],
+          "help": {
+            "text": "List files"
+          }
+        }
+      ]
+    }
+  ]
+}
+```
+
+```execute
+aux4 lint run --dir bad-cloud-machine 2>&1 || true
+```
+
+```expect:partial
+*?
+  *: ERROR  [metadata-cloud] 'cloud.machine.name' must be a valid VM name
+  *: ERROR  [metadata-cloud] 'cloud.machine.size' must be one of: xs, sm, md, lg, xl
+  *: ERROR  [metadata-cloud] 'cloud.machine.disk' must be between 0.5 and 10 GiB for size 'xxl'
+  *: ERROR  [metadata-cloud] 'cloud.machine.tenantCapabilities.packages' must be boolean
+*?
+4 errors
+```
 
 ### profiles-only file should pass
 
