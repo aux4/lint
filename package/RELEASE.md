@@ -2,6 +2,12 @@
 
 ## Features
 
+- Cloud package manifests are now validated end to end. The linter recognizes
+  `type: cloud` and the optional `cloud.deployment` policy. Deployment may be
+  `any` or `new-vm`; invalid types, unsupported deployment policies, unknown
+  cloud configuration fields, and `cloud` configuration on a non-cloud package
+  are reported as errors.
+
 - New `dependency-version` rule (severity `error`). Every `dependencies` entry
   in a package `.aux4` now has its version token validated at lint time, using
   the same grammar the package manager applies when it resolves the dependency
