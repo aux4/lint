@@ -1086,6 +1086,7 @@ aux4 lint run --dir missing-cloud-machine 2>&1 || true
       "name": "bad name",
       "size": "xxl",
       "disk": 20,
+      "type": "website",
       "tenantCapabilities": {
         "packages": "yes"
       }
@@ -1120,9 +1121,10 @@ aux4 lint run --dir bad-cloud-machine 2>&1 || true
   *: ERROR  [metadata-cloud] 'cloud.machine.name' must be a valid VM name
   *: ERROR  [metadata-cloud] 'cloud.machine.size' must be one of: xs, sm, md, lg, xl
   *: ERROR  [metadata-cloud] 'cloud.machine.disk' must be between 0.5 and 10 GiB for size 'xxl'
+  *: ERROR  [metadata-cloud] 'cloud.machine.type' must be one of: api, command
   *: ERROR  [metadata-cloud] 'cloud.machine.tenantCapabilities.packages' must be boolean
 *?
-4 errors
+5 errors
 ```
 
 ### profiles-only file should pass
