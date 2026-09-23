@@ -821,6 +821,7 @@ aux4 lint run --dir bad-when
   "version": "1.0.0",
   "type": "cloud",
   "cloud": {
+    "stateful": true,
     "deployment": "new-vm",
     "machine": {
       "name": "files",
@@ -858,6 +859,55 @@ aux4 lint run --dir cloud-package
 
 ```expect:partial
 No issues found.
+```
+
+### cloud stateful flag must be boolean
+
+```file:bad-cloud-stateful/.aux4
+{
+  "scope": "aux4",
+  "name": "agent-chat",
+  "version": "1.0.0",
+  "type": "cloud",
+  "cloud": {
+    "stateful": "yes",
+    "deployment": "new-vm",
+    "machine": {
+      "name": "agent-chat",
+      "size": "md",
+      "disk": 1,
+      "type": "api"
+    }
+  },
+  "description": "Agent chat cloud package",
+  "profiles": [
+    {
+      "name": "main",
+      "commands": [
+        {
+          "name": "chat",
+          "execute": [
+            "echo chat"
+          ],
+          "help": {
+            "text": "Open chat"
+          }
+        }
+      ]
+    }
+  ]
+}
+```
+
+```execute
+aux4 lint run --dir bad-cloud-stateful 2>&1 || true
+```
+
+```expect:partial
+*?
+  *: ERROR  [metadata-cloud] 'cloud.stateful' must be boolean
+*?
+1 error
 ```
 
 ### unsupported package type should fail
