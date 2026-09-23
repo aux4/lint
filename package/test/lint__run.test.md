@@ -822,6 +822,9 @@ aux4 lint run --dir bad-when
   "type": "cloud",
   "cloud": {
     "stateful": true,
+    "replaces": [
+      "aux4/app-agent-chat"
+    ],
     "deployment": "new-vm",
     "machine": {
       "name": "files",
@@ -906,6 +909,57 @@ aux4 lint run --dir bad-cloud-stateful 2>&1 || true
 ```expect:partial
 *?
   *: ERROR  [metadata-cloud] 'cloud.stateful' must be boolean
+*?
+1 error
+```
+
+### cloud replacement ids must use scope/name form
+
+```file:bad-cloud-replaces/.aux4
+{
+  "scope": "aux4",
+  "name": "cloud-chat",
+  "version": "1.0.0",
+  "type": "cloud",
+  "cloud": {
+    "replaces": [
+      "app-agent-chat"
+    ],
+    "deployment": "new-vm",
+    "machine": {
+      "name": "chat",
+      "size": "md",
+      "disk": 1,
+      "type": "api"
+    }
+  },
+  "description": "Cloud chat",
+  "profiles": [
+    {
+      "name": "main",
+      "commands": [
+        {
+          "name": "chat",
+          "execute": [
+            "echo chat"
+          ],
+          "help": {
+            "text": "Open chat"
+          }
+        }
+      ]
+    }
+  ]
+}
+```
+
+```execute
+aux4 lint run --dir bad-cloud-replaces 2>&1 || true
+```
+
+```expect:partial
+*?
+  *: ERROR  [metadata-cloud] 'cloud.replaces' must be an array of package ids in scope/name form
 *?
 1 error
 ```
