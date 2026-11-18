@@ -76,4 +76,5 @@ jobs:
           command: publish
           level: patch
           aux4_token: ${{ steps.devmint.outputs.token }}
+          registry: https://dev.api.hub.aux4.io/v1/packages
           github_token: ${{ secrets.GITHUB_TOKEN }}
