@@ -2,8 +2,7 @@ name: Publish Package
 
 on:
   push:
-    branches:
-      - main
+    branches: [dev]
     paths:
       - '**'
       - '!.github/**'
@@ -11,81 +10,70 @@ on:
       - '!LICENSE'
       - '!.gitignore'
 
-  workflow_dispatch:
-    inputs:
-      level:
-        description: 'Release level (patch, minor, major)'
-        required: true
-        default: 'patch'
-        type: choice
-        options:
-          - patch
-          - minor
-          - major
-
 concurrency:
-  group: publish-package
+  group: publish-package-${{ github.ref_name }}
   cancel-in-progress: false
 
 permissions:
   contents: write
 
+env:
+  AUX4_REGISTRY_URL: ${{ github.ref_name == 'dev' && 'https://dev.api.hub.aux4.io/v1/packages' || '' }}
+
 jobs:
-  test:
+  lint:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v6
-
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v4
         with:
-          node-version: '22'
+          node-version: 22
+      - run: npm ci
+      - run: npm run build
+      - uses: aux4/action@v1
+        with:
+          command: lint
+          strict: 'true'
 
-      - name: Install dependencies
-        run: npm install
-
-      - name: Build
-        run: npm run build
-
-      - name: Test
-        uses: aux4/test-package-action@v1
+  test:
+    needs: [lint]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm ci
+      - run: npm run build
+      - uses: aux4/action@v1
+        with:
+          command: test
 
   publish:
-    needs: [test]
+    needs: [lint, test]
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v6
+      - uses: actions/checkout@v6
         with:
           fetch-depth: 0
-
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
+      - uses: actions/setup-node@v4
         with:
-          node-version: '22'
-
-      - name: Install dependencies
-        run: npm install
-
-      - name: Build
-        run: npm run build
-
-      - name: Mint hub publish token
-        id: mint
+          node-version: 22
+      - run: npm ci
+      - run: npm run build
+      - name: Mint dev hub publish token
+        id: devmint
         env:
-          CLIENT_ID: ${{ secrets.AUX4_PUBLISHER_CLIENT_ID }}
-          CLIENT_SECRET: ${{ secrets.AUX4_PUBLISHER_CLIENT_SECRET }}
+          CLIENT_ID: ${{ secrets.AUX4_DEV_PUBLISHER_CLIENT_ID }}
+          CLIENT_SECRET: ${{ secrets.AUX4_DEV_PUBLISHER_CLIENT_SECRET }}
         run: |
-          if [ -z "$CLIENT_ID" ] || [ -z "$CLIENT_SECRET" ]; then echo "::error::publisher client id/secret not set"; exit 1; fi
-          TOK=$(curl -sf -u "$CLIENT_ID:$CLIENT_SECRET" -d grant_type=client_credentials https://sso.aux4.io/token | jq -r '.access_token // empty')
+          if [ -z "$CLIENT_ID" ] || [ -z "$CLIENT_SECRET" ]; then echo "::error::dev publisher client id/secret not set"; exit 1; fi
+          TOK=$(curl -sf -u "$CLIENT_ID:$CLIENT_SECRET" -d grant_type=client_credentials https://dev.sso.aux4.io/token | jq -r '.access_token // empty')
           if [ -z "$TOK" ]; then echo "::error::client_credentials mint returned no access_token"; exit 1; fi
           echo "::add-mask::$TOK"; echo "token=$TOK" >> "$GITHUB_OUTPUT"
-      - name: Publish package
-        uses: aux4/publish-package-action@v1
+      - uses: aux4/action@v1
         with:
-          working_directory: package
-          package_directory: .
-          level: ${{ inputs.level || 'patch' }}
-          aux4_token: ${{ steps.mint.outputs.token }}
+          command: publish
+          level: patch
+          aux4_token: ${{ steps.devmint.outputs.token }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
