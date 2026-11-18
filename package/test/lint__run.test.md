@@ -864,6 +864,90 @@ aux4 lint run --dir cloud-package
 No issues found.
 ```
 
+### cloud capabilities and command allowlist should pass
+
+```file:cloud-manifest-fields/.aux4
+{
+  "scope": "aux4",
+  "name": "cloud-fields",
+  "version": "1.0.0",
+  "type": "cloud",
+  "cloud": {
+    "deployment": "new-vm",
+    "capabilities": ["turso:database"],
+    "commands": ["whatsapp"],
+    "machine": {
+      "name": "whatsapp-bot",
+      "size": "sm",
+      "disk": 1,
+      "commands": ["whatsapp"],
+      "tenantCapabilities": {"packages": false, "webhooks": false}
+    }
+  },
+  "description": "Cloud manifest field coverage",
+  "profiles": [{
+    "name": "main",
+    "commands": [{
+      "name": "whatsapp",
+      "execute": ["echo whatsapp"],
+      "help": {"text": "Run WhatsApp"}
+    }]
+  }]
+}
+```
+
+```execute
+aux4 lint run --dir cloud-manifest-fields
+```
+
+```expect:partial
+No issues found.
+```
+
+### cloud capabilities and command allowlist must have valid list shapes
+
+```file:bad-cloud-manifest-fields/.aux4
+{
+  "scope": "aux4",
+  "name": "bad-cloud-fields",
+  "version": "1.0.0",
+  "type": "cloud",
+  "cloud": {
+    "deployment": "new-vm",
+    "capabilities": ["bad capability"],
+    "commands": ["whatsapp", "whatsapp"],
+    "machine": {
+      "name": "whatsapp-bot",
+      "size": "sm",
+      "disk": 1,
+      "commands": "whatsapp"
+    }
+  },
+  "description": "Invalid cloud manifest field shapes",
+  "profiles": [{
+    "name": "main",
+    "commands": [{
+      "name": "whatsapp",
+      "execute": ["echo whatsapp"],
+      "help": {"text": "Run WhatsApp"}
+    }]
+  }]
+}
+```
+
+```execute
+aux4 lint run --dir bad-cloud-manifest-fields 2>&1 || true
+```
+
+```expect:partial
+*?
+*: ERROR  [metadata-cloud] 'cloud.capabilities' must be an array of unique capability ids
+*: ERROR  [metadata-cloud] 'cloud.commands' must be an array of unique top-level command names
+*: ERROR  [metadata-cloud] 'cloud.machine.commands' must be an array of unique top-level command names
+*?
+3 errors
+```
+
 ### cloud stateful flag must be boolean
 
 ```file:bad-cloud-stateful/.aux4
